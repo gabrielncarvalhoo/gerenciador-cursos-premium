@@ -8,6 +8,7 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script id="tailwind-config">
         tailwind.config = { darkMode: "class", theme: { extend: { colors: { "primary": "#adc6ff", "primary-container": "#4d8eff", "surface-container-lowest": "#0e0e0e", "surface-container-low": "#1c1b1b", "surface-container": "#201f1f", "surface-container-high": "#2a2a2a", "surface-container-highest": "#353534", "surface-bright": "#393939", "on-surface": "#e5e2e1", "on-surface-variant": "#c2c6d6", "tertiary": "#4ae176", "outline-variant": "#424754", "secondary": "#b1c6f9", "error": "#ffb4ab" }, fontFamily: { headline: ["Inter"], body: ["Inter"], label: ["Inter"] } } } }
@@ -50,7 +51,7 @@
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="md:col-span-2 bg-surface-container rounded-xl p-6 flex flex-col gap-4 shadow-lg border border-outline-variant/10">
-                        <div><label class="block text-xs font-label uppercase tracking-widest text-primary mb-2">Nome exato do Canal</label><input id="input-canal" type="text" placeholder="Ex: Matemática Criativa 2024 Ext." class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all"/><div id="canal-history" class="flex flex-wrap gap-2 mt-2"></div></div>
+                        <div><label class="block text-xs font-label uppercase tracking-widest text-primary mb-2">Nome exato do Canal</label><input id="input-canal" type="text" placeholder="Ex: Matemática Criativa 2024 Ext." class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all"/></div>
                         <div><label class="block text-xs font-label uppercase tracking-widest text-primary mb-2">ID da Pasta Raiz no Google Drive</label><input id="input-drive" type="text" placeholder="Cole aqui o ID da pasta onde os cursos serão salvos" class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all"/></div>
                     </div>
                     <div class="bg-surface-container rounded-xl p-6 flex flex-col justify-center items-center text-center border border-outline-variant/10 shadow-lg">
@@ -211,7 +212,13 @@
                         </a>
                     </div>
 
-                    <iframe id="video-iframe" class="absolute inset-0 w-full h-full border-0 hidden z-20" src="" allow="autoplay" allowfullscreen></iframe>
+                    <video id="video-player"
+                      class="absolute inset-0 w-full h-full rounded-xl hidden z-20"
+                      playsinline controls>
+                    </video>
+                    <iframe id="video-iframe"
+                      class="absolute inset-0 w-full h-full border-0 hidden z-20"
+                      src="" allow="autoplay" allowfullscreen></iframe>
                 </div>
 
                 <div class="flex flex-col gap-3 px-2">
@@ -272,7 +279,69 @@
         </div>
     </div>
 
+    <div id="modal-perfis" class="hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
+        <div class="bg-surface-container-high rounded-2xl p-8 max-w-md w-full border border-outline-variant/20 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+            <div class="flex items-start gap-4 mb-6">
+                <span class="material-symbols-outlined text-primary text-[32px]">group</span>
+                <div class="flex-1">
+                    <h3 class="font-headline text-lg font-bold text-on-surface mb-2">Perfis</h3>
+                    <p class="text-sm text-on-surface-variant">Escolha um perfil ou crie um novo.</p>
+                </div>
+                <button onclick="fecharModalPerfis()" class="text-on-surface-variant hover:text-on-surface transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <ul id="lista-perfis" class="flex flex-col gap-2 mb-6 max-h-[300px] overflow-y-auto custom-scrollbar"></ul>
+            <div class="flex items-center gap-2">
+                <input id="input-novo-perfil" type="text" placeholder="Nome do novo perfil" class="flex-1 bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:outline-none focus:border-primary/50 transition-all">
+                <button onclick="criarPerfil()" class="px-5 py-2.5 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all">Criar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-agendar" class="hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
+        <div class="bg-surface-container-high rounded-2xl p-8 max-w-md w-full border border-outline-variant/20 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+            <div class="flex items-start gap-4 mb-6">
+                <span class="material-symbols-outlined text-primary text-[32px]">schedule</span>
+                <div class="flex-1">
+                    <h3 class="font-headline text-lg font-bold text-on-surface mb-2">Agendar Transferência</h3>
+                    <p class="text-sm text-on-surface-variant">A transferência dos arquivos selecionados será iniciada automaticamente no horário definido.</p>
+                </div>
+                <button onclick="fecharModalAgendar()" class="text-on-surface-variant hover:text-on-surface transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="flex flex-col gap-3 mb-4">
+                <label class="text-xs font-label uppercase tracking-widest text-primary">Data e hora</label>
+                <input id="input-agendar-datahora" type="datetime-local" class="bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-2.5 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all">
+            </div>
+            <div id="lista-agendamentos-wrap" class="hidden flex-col gap-2 mb-6">
+                <label class="text-xs font-label uppercase tracking-widest text-primary">Agendamentos pendentes</label>
+                <ul id="lista-agendamentos" class="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar"></ul>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button onclick="fecharModalAgendar()" class="px-5 py-2.5 rounded-full bg-surface-container-highest text-on-surface font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all">Cancelar</button>
+                <button onclick="_salvarAgendamento()" class="px-5 py-2.5 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all">Agendar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // =========================================================
+        // GLOBAIS — precisam existir antes de qualquer uso
+        // =========================================================
+        function _getPrefixo() {
+            const perfil = localStorage.getItem('perfilAtivo') || 'default';
+            return 'perfil_' + perfil + '_';
+        }
+
+        let _libraryCarregando = false;
+
+        // Sanitiza valor inválido persistido em versões antigas (ex: ".")
+        if (localStorage.getItem('rootDriveRootId') === '.') {
+            localStorage.setItem('rootDriveRootId', '1Q19UVnVgV9BApx-V9Aj_tV_1NHM2fC6i');
+        }
+
         // =========================================================
         // ESTADO PERSISTENTE DA LIBRARY (não destruir DOM, só ocultar)
         // =========================================================
@@ -723,19 +792,13 @@
 
             // Renderiza os chips
             historico.forEach(canal => {
-                const chip = document.createElement('button');
-                chip.className = 'bg-surface-container-highest text-primary text-xs px-3 py-1 rounded-full border border-outline-variant/20 flex items-center gap-1';
+                const canalEsc = canal.replace(/'/g, "\\'");
+                const chip = document.createElement('div');
+                chip.className = 'flex items-center gap-1 px-3 py-1 rounded-full bg-surface-container-highest border border-outline-variant/20 text-xs text-primary cursor-pointer hover:brightness-110 transition-all';
                 chip.innerHTML = `
-                    <span>${canal}</span>
-                    <span class="cursor-pointer font-bold" data-remove="${canal}">×</span>
+                    <span onclick="_preencherCanal('${canalEsc}')" class="flex-1">${canal}</span>
+                    <span onclick="_removerCanalDoHistorico('${canalEsc}')" class="text-on-surface-variant hover:text-error ml-1 font-bold leading-none">×</span>
                 `;
-                chip.onclick = (e) => {
-                    if (e.target.dataset.remove) {
-                        _removerCanalDoHistorico(canal);
-                    } else {
-                        document.getElementById('input-canal').value = canal;
-                    }
-                };
                 historyContainer.appendChild(chip);
             });
         }
@@ -769,7 +832,6 @@
 
             try {
                 localStorage.setItem('canaisHistorico', JSON.stringify(historico));
-                _carregarHistoricoCanais();
             } catch (e) {
                 console.warn('Erro ao salvar histórico de canais:', e);
             }
@@ -796,7 +858,6 @@
 
             try {
                 localStorage.setItem('canaisHistorico', JSON.stringify(historico));
-                _carregarHistoricoCanais();
             } catch (e) {
                 console.warn('Erro ao remover canal do histórico:', e);
             }
@@ -1044,7 +1105,7 @@
 
         // Library rodando de forma independente do Download Center: usa lock reentrante
         // para não duplicar chamadas se o usuário clicar refresh em rajada.
-        let _libraryCarregando = false;
+        // (declaração de _libraryCarregando movida para o topo do script)
 
         async function renderLibrary(forcarRefresh = false) {
             const grid = document.getElementById('course-grid');
@@ -1401,6 +1462,63 @@
             fallbackLink.href = (_playerInfo && _playerInfo.drive_url) || '#';
         }
 
+        function playHLS(fileId, driveUrl) {
+            const video = document.getElementById('video-player');
+            const iframe = document.getElementById('video-iframe');
+
+            if (!Hls.isSupported()) {
+                // Fallback para iframe se HLS não suportado
+                iframe.src = driveUrl;
+                iframe.classList.remove('hidden');
+                video.classList.add('hidden');
+                return;
+            }
+
+            // Para qualquer stream anterior
+            if (window._hlsInstance) {
+                fetch(`http://localhost:8765/stop/${window._hlsFileId}`)
+                    .catch(() => {});
+                window._hlsInstance.destroy();
+                window._hlsInstance = null;
+            }
+
+            window._hlsFileId = fileId;
+            const src = `http://localhost:8765/stream/${fileId}/playlist.m3u8`
+                + `?url=${encodeURIComponent(driveUrl)}`;
+
+            const hls = new Hls({ maxBufferLength: 60 });
+            hls.loadSource(src);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                video.play();
+                // Restaurar posição salva
+                const prefixo = typeof _getPrefixo === 'function' ? _getPrefixo() : '';
+                const t = localStorage.getItem(prefixo + 'lessonTime_' + fileId);
+                if (t) video.currentTime = parseInt(t);
+            });
+            hls.on(Hls.Events.ERROR, (event, data) => {
+                if (data.fatal) {
+                    // Fallback para iframe
+                    video.classList.add('hidden');
+                    iframe.classList.remove('hidden');
+                    iframe.src = driveUrl;
+                }
+            });
+
+            // Salvar posição a cada 5s
+            video.ontimeupdate = () => {
+                const prefixo = typeof _getPrefixo === 'function' ? _getPrefixo() : '';
+                localStorage.setItem(
+                    prefixo + 'lessonTime_' + fileId,
+                    Math.floor(video.currentTime)
+                );
+            };
+
+            video.classList.remove('hidden');
+            iframe.classList.add('hidden');
+            window._hlsInstance = hls;
+        }
+
         function _tentarMetodoEmbed(url, tentativaAtual) {
             const iframe = document.getElementById('video-iframe');
             const placeholder = document.getElementById('player-placeholder');
@@ -1488,8 +1606,219 @@
             }
 
             // Cascata: 1) preview → 2) uc?export=download → 3) fallback "Abrir no Google Drive"
+            // Tenta HLS primeiro se servidor local estiver disponível
+            fetch('http://localhost:8765/stream/' + lessonId + '/playlist.m3u8?url='
+                + encodeURIComponent(info.preview_url), {method: 'HEAD'})
+            .then(() => {
+                playHLS(lessonId, info.preview_url);
+            })
+            .catch(() => {
+                _tentarMetodoEmbed(urlInicial, 1);
+            });
+            return; // evita chamar _tentarMetodoEmbed duas vezes
             _tentarMetodoEmbed(urlInicial, 1);
             renderPlayerUI();
         }
 
-        [[100], [1, 'a42] font-label uppercase tracking-widest text-xs font-bold', 'Confirmar</button>\n        </div>\n      </div>\n    </div>\n</body>\n</html>']]
+        // =========================================================
+        // PERFIS
+        // =========================================================
+        const PERFIS_KEY = 'listaPerfis';
+
+        function _getPerfis() {
+            try {
+                const arr = JSON.parse(localStorage.getItem(PERFIS_KEY) || '[]');
+                if (!arr.length) return ['default'];
+                return arr;
+            } catch (e) { return ['default']; }
+        }
+
+        function _setPerfis(perfis) {
+            localStorage.setItem(PERFIS_KEY, JSON.stringify(perfis));
+        }
+
+        function _getPerfilAtivo() {
+            return localStorage.getItem('perfilAtivo') || 'default';
+        }
+
+        function _atualizarNomePerfilAtivo() {
+            const el = document.getElementById('perfil-nome-ativo');
+            if (el) el.innerText = _getPerfilAtivo();
+        }
+
+        function _renderizarListaPerfis() {
+            const ul = document.getElementById('lista-perfis');
+            if (!ul) return;
+            const perfis = _getPerfis();
+            const ativo = _getPerfilAtivo();
+            ul.innerHTML = perfis.map(p => {
+                const pEsc = p.replace(/'/g, "\\'");
+                const isAtivo = p === ativo;
+                const podeDeletar = perfis.length > 1 && p !== 'default';
+                const btnDel = podeDeletar
+                    ? `<button onclick="deletarPerfil('${pEsc}')" class="text-on-surface-variant hover:text-error transition-colors p-1"><span class="material-symbols-outlined text-[18px]">delete</span></button>`
+                    : '';
+                const highlight = isAtivo
+                    ? 'bg-primary/10 border-primary/40 text-primary'
+                    : 'bg-surface-container-highest border-outline-variant/20 text-on-surface hover:brightness-110';
+                return `<li class="flex items-center gap-2 border rounded-lg px-4 py-2.5 ${highlight} transition-all">
+                    <span onclick="selecionarPerfil('${pEsc}')" class="flex-1 cursor-pointer text-sm font-medium">${p}${isAtivo ? ' (ativo)' : ''}</span>
+                    ${btnDel}
+                </li>`;
+            }).join('');
+        }
+
+        function abrirModalPerfis() {
+            _renderizarListaPerfis();
+            const input = document.getElementById('input-novo-perfil');
+            if (input) input.value = '';
+            document.getElementById('modal-perfis').classList.remove('hidden');
+        }
+
+        function fecharModalPerfis() {
+            document.getElementById('modal-perfis').classList.add('hidden');
+        }
+
+        function criarPerfil() {
+            const input = document.getElementById('input-novo-perfil');
+            if (!input) return;
+            const nome = input.value.trim();
+            if (!nome) { alert('Digite um nome para o perfil.'); return; }
+            const perfis = _getPerfis();
+            if (perfis.includes(nome)) { alert('Já existe um perfil com esse nome.'); return; }
+            perfis.push(nome);
+            _setPerfis(perfis);
+            input.value = '';
+            _renderizarListaPerfis();
+        }
+
+        function selecionarPerfil(nome) {
+            if (!nome) return;
+            localStorage.setItem('perfilAtivo', nome);
+            _atualizarNomePerfilAtivo();
+            fecharModalPerfis();
+            location.reload();
+        }
+
+        function deletarPerfil(nome) {
+            if (!nome || nome === 'default') return;
+            const perfis = _getPerfis().filter(p => p !== nome);
+            if (!perfis.length) perfis.push('default');
+            _setPerfis(perfis);
+            if (_getPerfilAtivo() === nome) {
+                localStorage.setItem('perfilAtivo', perfis[0]);
+                _atualizarNomePerfilAtivo();
+                location.reload();
+                return;
+            }
+            _renderizarListaPerfis();
+        }
+
+        // =========================================================
+        // AGENDAMENTO DE TRANSFERÊNCIAS
+        // =========================================================
+        const AGENDAMENTOS_KEY = 'agendamentosTransferencia';
+
+        function _getAgendamentos() {
+            try { return JSON.parse(localStorage.getItem(AGENDAMENTOS_KEY) || '[]'); }
+            catch (e) { return []; }
+        }
+
+        function _setAgendamentos(lista) {
+            localStorage.setItem(AGENDAMENTOS_KEY, JSON.stringify(lista));
+        }
+
+        function _renderizarAgendamentos() {
+            const wrap = document.getElementById('lista-agendamentos-wrap');
+            const ul = document.getElementById('lista-agendamentos');
+            if (!wrap || !ul) return;
+            const lista = _getAgendamentos().filter(a => !a.disparado);
+            if (lista.length === 0) {
+                wrap.classList.add('hidden');
+                wrap.classList.remove('flex');
+                return;
+            }
+            wrap.classList.remove('hidden');
+            wrap.classList.add('flex');
+            ul.innerHTML = lista.map(a => {
+                const dt = new Date(a.quando).toLocaleString();
+                return `<li class="flex items-center gap-2 bg-surface-container-highest border border-outline-variant/20 rounded-lg px-3 py-2 text-xs">
+                    <span class="flex-1 text-on-surface truncate">${dt} — ${a.canal} (${(a.ids || []).length} arq.)</span>
+                    <button onclick="_deletarAgendamento('${a.id}')" class="text-on-surface-variant hover:text-error transition-colors p-1"><span class="material-symbols-outlined text-[16px]">delete</span></button>
+                </li>`;
+            }).join('');
+        }
+
+        function abrirModalAgendar() {
+            const modal = document.getElementById('modal-agendar');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+
+        function fecharModalAgendar() {
+            const modal = document.getElementById('modal-agendar');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+
+        function _salvarAgendamento() {
+            const dtInput = document.getElementById('input-agendar-datahora');
+            if (!dtInput || !dtInput.value) { alert('Defina a data e hora.'); return; }
+            const quando = new Date(dtInput.value).getTime();
+            if (!isFinite(quando) || quando <= Date.now()) { alert('Escolha uma data/hora futura.'); return; }
+
+            const canal = document.getElementById('input-canal').value.trim();
+            const pasta = document.getElementById('input-drive').value.trim() || localStorage.getItem('rootDriveRootId') || '';
+            if (!canal || !pasta) { alert('Preencha o canal e a pasta do Drive antes de agendar.'); return; }
+
+            const ids = Array.from(document.querySelectorAll('.dl-check:checked:not([disabled])')).map(cb => cb.value);
+            if (ids.length === 0) { alert('Selecione pelo menos um arquivo antes de agendar.'); return; }
+
+            const ordens = {};
+            (_aulasEncontradas || []).forEach(a => { ordens[String(a.id)] = a.ordem; });
+
+            const lista = _getAgendamentos();
+            lista.push({
+                id: 'ag_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                quando, canal, pasta, ids, ordens, disparado: false
+            });
+            _setAgendamentos(lista);
+            addLog(`📅 Agendado para ${new Date(quando).toLocaleString()} — ${ids.length} arquivo(s).`);
+            _renderizarAgendamentos();
+            fecharModalAgendar();
+        }
+
+        function _deletarAgendamento(id) {
+            const lista = _getAgendamentos().filter(a => a.id !== id);
+            _setAgendamentos(lista);
+            _renderizarAgendamentos();
+        }
+
+        async function _verificarAgendamento() {
+            const lista = _getAgendamentos();
+            const agora = Date.now();
+            let mudou = false;
+            for (const ag of lista) {
+                if (ag.disparado) continue;
+                if (ag.quando > agora) continue;
+                ag.disparado = true;
+                mudou = true;
+                try {
+                    addLog(`⏰ Disparando agendamento de ${new Date(ag.quando).toLocaleString()} — canal '${ag.canal}'.`);
+                    localStorage.setItem('rootDriveRootId', ag.pasta);
+                    await eel.iniciar_transferencia_real(ag.canal, ag.pasta, ag.ids, ag.ordens || {})();
+                } catch (e) {
+                    addLog(`❌ Falha ao disparar agendamento: ${e}`);
+                }
+            }
+            if (mudou) _setAgendamentos(lista);
+        }
+
+        setInterval(_verificarAgendamento, 60000);
+
+        // Inicialização — roda ao carregar o script
+        document.getElementById('perfil-nome-ativo').innerText = localStorage.getItem('perfilAtivo') || 'default';
+        _verificarAgendamento();
+    </script>
+</body>
+</html>

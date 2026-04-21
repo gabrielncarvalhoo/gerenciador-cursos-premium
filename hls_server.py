@@ -1,1 +1,136 @@
-[{}, ['file_id'], ['file_id].returncode is not None:\n        os.makedirs(pasta, exist_ok=True)\n        # Obtém URL de streaming do Drive via parâmetro ?url=\n        drive_url = request.rel_url.query.get(\'url\', \'\')\n        if not drive_url:\n            raise web.HTTPBadRequest(text=\'Parâmetro url ausente\')\n\n        cmd = [\n            \'ffmpeg\', \'-y\',\n            \'-i\', drive_url,\n            \'-c:v\', \'copy\',\n            \'-c:a\', \'aac\',\n            \'-f\', \'hls\',\n            \'-hls_time\', \'4\',\n            \'-hls_list_size\', \'3\',\n            \'-hls_flags\', \'delete_segments+temp_file\',\n            \'-hls_segment_filename\', os.path.join(pasta, \'%03d.ts\'),\n            playlist\n        ]\n        proc = subprocess.Popen(cmd,\n            stdout=subprocess.DEVNULL,\n            stderr=subprocess.DEVNULL)\n        _processos[file_id] = proc\n\n    # Aguarda até 10s o primeiro segmento aparecer\n    for _ in range(20):\n        if os.path.exists(playlist):\n            break\n        await asyncio.sleep(0.5)\n\n    if not os.path.exists(playlist):\n        raise web.HTTPNotFound(text=\'Playlist não gerada\')\n\n    with open(playlist, \'rb\') as f:\n        content = f.read()\n    return web.Response(body=content,\n        content_type=\'application/vnd.apple.mpegurl\',\n        headers={\'Access-Control-Allow-Origin\': \'*\'})\n\nasync def handle_segment(request):\n    file_id = request.match_info[\'file_id\']\n    segment = request.match_info[\'segment\']\n    caminho = os.path.join(_pasta_video(file_id), segment)\n    if not os.path.exists(caminho):\n        raise web.HTTPNotFound()\n    with open(caminho, \'rb\') as f:\n        data = f.read()\n    return web.Response(body=data,\n        content_type=\'video/mp2t\',\n        headers={\'Access-Control-Allow-Origin\': \'*\'})\n\nasync def handle_stop(request):\n    file_id = request.match_info[\'file_id\']\n    if file_id in _processos:\n        try:\n            _processos[file_id].terminate()\n            del _processos[file_id]\n        except Exception:\n            pass\n    pasta = _pasta_video(file_id)\n    if os.path.exists(pasta):\n        shutil.rmtree(pasta, ignore_errors=True)\n    return web.Response(text=\'ok\',\n        headers={\'Access-Control-Allow-Origin\': \'*\'})\n\ndef criar_app():\n    app = web.Application()\n    app.router.add_get(\'/stream/{file_id}/playlist.m3u8\', handle_playlist)\n    app.router.add_get(\'/stream/{file_id}/{segment}\', handle_segment)\n    app.router.add_get(\'/stop/{file_id}\', handle_stop)\n    return app\n\ndef iniciar_servidor():\n    "', 'Chamado em thread daemon pelo main.py."', "\n    loop = asyncio.new_event_loop()\n    asyncio.set_event_loop(loop)\n    app = criar_app()\n    runner = web.AppRunner(app)\n    loop.run_until_complete(runner.setup())\n    site = web.TCPSite(runner, 'localhost', PORTA)\n    loop.run_until_complete(site.start())\n    print(f'[HLS] Servidor rodando em http://localhost:{PORTA}')\n    loop.run_forever()"]]
+"""
+Servidor HLS local para transmitir vídeos do Google Drive.
+
+Usa ffmpeg para transcodificar on-the-fly a partir de uma URL do Drive
+e expõe playlist/segmentos para o hls.js do front-end.
+
+Endpoints:
+    GET /stream/{file_id}/playlist.m3u8?url=<drive_url>
+    GET /stream/{file_id}/{segment}
+    GET /stop/{file_id}
+
+Chamado em thread daemon pelo main.py via iniciar_servidor().
+"""
+import os
+import shutil
+import asyncio
+import tempfile
+import subprocess
+
+from aiohttp import web
+
+PORTA = 8765
+_PASTA_BASE = os.path.join(tempfile.gettempdir(), 'hls_streams')
+_processos = {}
+
+
+def _pasta_video(file_id):
+    return os.path.join(_PASTA_BASE, file_id)
+
+
+async def handle_playlist(request):
+    file_id = request.match_info['file_id']
+    pasta = _pasta_video(file_id)
+    playlist = os.path.join(pasta, 'playlist.m3u8')
+
+    # Inicia ffmpeg se ainda não existir processo ativo
+    proc = _processos.get(file_id)
+    if proc is None or proc.returncode is not None:
+        os.makedirs(pasta, exist_ok=True)
+        # Obtém URL de streaming do Drive via parâmetro ?url=
+        drive_url = request.rel_url.query.get('url', '')
+        if not drive_url:
+            raise web.HTTPBadRequest(text='Parâmetro url ausente')
+
+        cmd = [
+            'ffmpeg', '-y',
+            '-i', drive_url,
+            '-c:v', 'copy',
+            '-c:a', 'aac',
+            '-f', 'hls',
+            '-hls_time', '4',
+            '-hls_list_size', '3',
+            '-hls_flags', 'delete_segments+temp_file',
+            '-hls_segment_filename', os.path.join(pasta, '%03d.ts'),
+            playlist,
+        ]
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        _processos[file_id] = proc
+
+    # Aguarda até 10s o primeiro segmento aparecer
+    for _ in range(20):
+        if os.path.exists(playlist):
+            break
+        await asyncio.sleep(0.5)
+
+    if not os.path.exists(playlist):
+        raise web.HTTPNotFound(text='Playlist não gerada')
+
+    with open(playlist, 'rb') as f:
+        content = f.read()
+    return web.Response(
+        body=content,
+        content_type='application/vnd.apple.mpegurl',
+        headers={'Access-Control-Allow-Origin': '*'},
+    )
+
+
+async def handle_segment(request):
+    file_id = request.match_info['file_id']
+    segment = request.match_info['segment']
+    caminho = os.path.join(_pasta_video(file_id), segment)
+    if not os.path.exists(caminho):
+        raise web.HTTPNotFound()
+    with open(caminho, 'rb') as f:
+        data = f.read()
+    return web.Response(
+        body=data,
+        content_type='video/mp2t',
+        headers={'Access-Control-Allow-Origin': '*'},
+    )
+
+
+async def handle_stop(request):
+    file_id = request.match_info['file_id']
+    if file_id in _processos:
+        try:
+            _processos[file_id].terminate()
+            del _processos[file_id]
+        except Exception:
+            pass
+    pasta = _pasta_video(file_id)
+    if os.path.exists(pasta):
+        shutil.rmtree(pasta, ignore_errors=True)
+    return web.Response(
+        text='ok',
+        headers={'Access-Control-Allow-Origin': '*'},
+    )
+
+
+def criar_app():
+    app = web.Application()
+    app.router.add_get('/stream/{file_id}/playlist.m3u8', handle_playlist)
+    app.router.add_get('/stream/{file_id}/{segment}', handle_segment)
+    app.router.add_get('/stop/{file_id}', handle_stop)
+    return app
+
+
+def iniciar_servidor():
+    """Chamado em thread daemon pelo main.py."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    app = criar_app()
+    runner = web.AppRunner(app)
+    loop.run_until_complete(runner.setup())
+    site = web.TCPSite(runner, 'localhost', PORTA)
+    loop.run_until_complete(site.start())
+    print(f'[HLS] Servidor rodando em http://localhost:{PORTA}')
+    loop.run_forever()
+
+
+if __name__ == '__main__':
+    iniciar_servidor()
