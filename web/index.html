@@ -71,6 +71,7 @@
                             <span id="contador-selecionados" class="text-xs font-mono text-on-surface-variant/70 hidden">0 selecionado(s)</span>
                             <button id="btn-parar" onclick="pararTransferencia()" class="px-5 py-2.5 rounded-full bg-surface-container-highest text-error font-label uppercase tracking-widest text-xs font-bold flex items-center gap-2 border border-outline-variant/15 opacity-50 cursor-not-allowed" disabled><span class="material-symbols-outlined text-[18px]">stop_circle</span><span class="btn-parar-label">Parar</span></button>
                             <button id="btn-transferir" onclick="iniciarTransferencia()" class="px-5 py-2.5 rounded-full bg-tertiary text-[#002109] font-label uppercase tracking-widest text-xs font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(74,225,118,0.2)] opacity-50 cursor-not-allowed" disabled><span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_circle</span> Iniciar Transferência</button>
+                            <button id="btn-agendar" onclick="abrirModalAgendar()" class="px-5 py-2.5 rounded-full bg-surface-container-highest text-primary font-label uppercase tracking-widest text-xs font-bold flex items-center gap-2 border border-outline-variant/15 opacity-50 cursor-not-allowed" disabled><span class="material-symbols-outlined text-[18px]">schedule</span> Agendar</button>
                         </div>
                     </div>
                     <div id="download-list" class="p-2 space-y-1 h-[450px] overflow-y-auto custom-scrollbar flex flex-col items-center justify-center">
@@ -1486,9 +1487,4 @@
             renderPlayerUI();
         }
 
-        // Inicia na tela de Download
-        showView('download');
-        _carregarHistoricoCanais();
-    </script>
-</body>
-</html>
+        [[100], [1, 'a42] font-label uppercase tracking-widest text-xs font-bold', 'Confirmar</button>\n        </div>\n      </div>\n    </div>\n</body>\n</html>']]
