@@ -45,7 +45,7 @@
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="md:col-span-2 bg-surface-container rounded-xl p-6 flex flex-col gap-4 shadow-lg border border-outline-variant/10">
-                        <div><label class="block text-xs font-label uppercase tracking-widest text-primary mb-2">Nome exato do Canal</label><input id="input-canal" type="text" placeholder="Ex: Matemática Criativa 2024 Ext." class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all"/></div>
+                        <div><label class="block text-xs font-label uppercase tracking-widest text-primary mb-2">Nome exato do Canal</label><input id="input-canal" type="text" placeholder="Ex: Matemática Criativa 2024 Ext." class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all"/><div id="canal-history" class="flex flex-wrap gap-2 mt-2"></div></div>
                         <div><label class="block text-xs font-label uppercase tracking-widest text-primary mb-2">ID da Pasta Raiz no Google Drive</label><input id="input-drive" type="text" placeholder="Cole aqui o ID da pasta onde os cursos serão salvos" class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all"/></div>
                     </div>
                     <div class="bg-surface-container rounded-xl p-6 flex flex-col justify-center items-center text-center border border-outline-variant/10 shadow-lg">
@@ -633,6 +633,7 @@
                 }
                 atualizarContadorSelecionados();
                 btnBuscar.innerText = "Buscar Novamente";
+                _salvarCanalNoHistorico(canal);
                 const novos = resposta.aulas.length - contadorJaNoDrive;
                 addLog(`✅ Sucesso! ${resposta.aulas.length} encontrados — ${novos} novo(s), ${contadorJaNoDrive} já no Drive.`);
                 document.getElementById('check-all').disabled = false;
@@ -693,6 +694,106 @@
             localStorage.setItem('rootDriveRootId', pasta);
 
             await eel.iniciar_transferencia_real(canal, pasta, ids_para_baixar, ordens)();
+        }
+
+        // Funções de histórico de canais
+        function _carregarHistoricoCanais() {
+            const historyContainer = document.getElementById('canal-history');
+            if (!historyContainer) return;
+
+            let historico = [];
+            try {
+                const historicoStr = localStorage.getItem('canaisHistorico');
+                if (historicoStr) {
+                    historico = JSON.parse(historicoStr);
+                }
+            } catch (e) {
+                console.warn('Erro ao carregar histórico de canais:', e);
+                historico = [];
+            }
+
+            // Limpa o container
+            historyContainer.innerHTML = '';
+
+            // Renderiza os chips
+            historico.forEach(canal => {
+                const chip = document.createElement('button');
+                chip.className = 'bg-surface-container-highest text-primary text-xs px-3 py-1 rounded-full border border-outline-variant/20 flex items-center gap-1';
+                chip.innerHTML = `
+                    <span>${canal}</span>
+                    <span class="cursor-pointer font-bold" data-remove="${canal}">×</span>
+                `;
+                chip.onclick = (e) => {
+                    if (e.target.dataset.remove) {
+                        _removerCanalDoHistorico(canal);
+                    } else {
+                        document.getElementById('input-canal').value = canal;
+                    }
+                };
+                historyContainer.appendChild(chip);
+            });
+        }
+
+        function _salvarCanalNoHistorico(nome) {
+            if (!nome) return;
+
+            let historico = [];
+            try {
+                const historicoStr = localStorage.getItem('canaisHistorico');
+                if (historicoStr) {
+                    historico = JSON.parse(historicoStr);
+                }
+            } catch (e) {
+                historico = [];
+            }
+
+            // Remove se já existir para não duplicar
+            const index = historico.indexOf(nome);
+            if (index !== -1) {
+                historico.splice(index, 1);
+            }
+
+            // Adiciona no início
+            historico.unshift(nome);
+
+            // Limita a 10 itens
+            if (historico.length > 10) {
+                historico = historico.slice(0, 10);
+            }
+
+            try {
+                localStorage.setItem('canaisHistorico', JSON.stringify(historico));
+                _carregarHistoricoCanais();
+            } catch (e) {
+                console.warn('Erro ao salvar histórico de canais:', e);
+            }
+        }
+
+        function _removerCanalDoHistorico(nome) {
+            if (!nome) return;
+
+            let historico = [];
+            try {
+                const historicoStr = localStorage.getItem('canaisHistorico');
+                if (historicoStr) {
+                    historico = JSON.parse(historicoStr);
+                }
+            } catch (e) {
+                historico = [];
+            }
+
+            // Remove o canal
+            const index = historico.indexOf(nome);
+            if (index !== -1) {
+                historico.splice(index, 1);
+            }
+
+            try {
+                localStorage.setItem('canaisHistorico', JSON.stringify(historico));
+                _carregarHistoricoCanais();
+            } catch (e) {
+                console.warn('Erro ao remover canal do histórico:', e);
+            }
         }
 
         async function pararTransferencia() {
@@ -1387,6 +1488,7 @@
 
         // Inicia na tela de Download
         showView('download');
+        _carregarHistoricoCanais();
     </script>
 </body>
 </html>
