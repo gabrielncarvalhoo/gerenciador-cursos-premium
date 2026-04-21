@@ -94,6 +94,16 @@ async def handle_segment(request):
     )
 
 
+async def handle_options(request):
+    return web.Response(
+        headers={
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': '*',
+        }
+    )
+
+
 async def handle_stop(request):
     file_id = request.match_info['file_id']
     if file_id in _processos:
@@ -114,8 +124,10 @@ async def handle_stop(request):
 def criar_app():
     app = web.Application()
     app.router.add_get('/stream/{file_id}/playlist.m3u8', handle_playlist)
+    app.router.add_route('HEAD', '/stream/{file_id}/playlist.m3u8', handle_playlist)
     app.router.add_get('/stream/{file_id}/{segment}', handle_segment)
     app.router.add_get('/stop/{file_id}', handle_stop)
+    app.router.add_options('/{path_info:.*}', handle_options)
     return app
 
 

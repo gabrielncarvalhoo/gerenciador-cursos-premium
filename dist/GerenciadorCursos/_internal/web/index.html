@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html class="dark" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Gerenciador de Cursos - Premium Archive</title>
+    <script type="text/javascript" src="/eel.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = { darkMode: "class", theme: { extend: { colors: { "primary": "#adc6ff", "primary-container": "#4d8eff", "surface-container-lowest": "#0e0e0e", "surface-container-low": "#1c1b1b", "surface-container": "#201f1f", "surface-container-high": "#2a2a2a", "surface-container-highest": "#353534", "surface-bright": "#393939", "on-surface": "#e5e2e1", "on-surface-variant": "#c2c6d6", "tertiary": "#4ae176", "outline-variant": "#424754", "secondary": "#b1c6f9", "error": "#ffb4ab" }, fontFamily: { headline: ["Inter"], body: ["Inter"], label: ["Inter"] } } } }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #2a2a2a; border-radius: 10px; }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb { background-color: #424754; }
+        .glass-panel { background: rgba(53, 53, 52, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        /* Skeleton loading — respeita a paleta atual (surface-container / surface-container-high). */
+        @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+        .skeleton { background: linear-gradient(90deg, #1c1b1b 0%, #2a2a2a 50%, #1c1b1b 100%); background-size: 800px 100%; animation: shimmer 1.6s infinite linear; border-radius: 0.75rem; }
+    </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface h-screen flex overflow-hidden antialiased">
+
+    <nav class="h-screen w-64 fixed left-0 top-0 bg-[#131313] shadow-[0px_20px_40px_rgba(0,0,0,0.4)] flex flex-col py-8 px-4 z-50">
+        <div class="mb-12 px-4 flex flex-col gap-1 cursor-pointer" onclick="showView('library')">
+            <h1 class="text-xl font-bold tracking-widest uppercase text-primary">Gerenciador</h1>
+            <p class="text-xs uppercase tracking-widest text-[#e5e2e1]/50">Premium Archive</p>
+        </div>
+        <div id="perfil-selector" onclick="abrirModalPerfis()" class="mx-4 mb-4 px-4 py-3 rounded-lg bg-surface-container border border-outline-variant/15 cursor-pointer hover:bg-surface-container-high transition-all flex items-center gap-3">
+            <span class="material-symbols-outlined text-primary text-lg">person</span>
+            <span id="perfil-nome-ativo" class="text-sm text-on-surface truncate flex-1">Carregando...</span>
+            <span class="material-symbols-outlined text-on-surface-variant text-sm">expand_more</span>
+        </div>
+        <ul class="flex flex-col gap-2 flex-1">
+            <li><a href="#" onclick="showView('download')" id="nav-download" class="nav-item flex items-center gap-4 px-4 py-3 rounded-lg text-primary font-bold border-r-2 border-primary bg-gradient-to-r from-primary/10 to-transparent transition-all"><span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">cloud_download</span><span class="text-sm">Download Center</span></a></li>
+            <li><a href="#" onclick="showView('library')" id="nav-library" class="nav-item flex items-center gap-4 px-4 py-3 rounded-lg text-[#e5e2e1]/50 hover:text-on-surface hover:bg-surface-container-high transition-all"><span class="material-symbols-outlined text-lg">library_books</span><span class="text-sm">Library</span></a></li>
+            <li><a href="#" onclick="showView('settings')" id="nav-settings" class="nav-item flex items-center gap-4 px-4 py-3 rounded-lg text-[#e5e2e1]/50 hover:text-on-surface hover:bg-surface-container-high transition-all"><span class="material-symbols-outlined text-lg">settings</span><span class="text-sm">Settings</span></a></li>
+        </ul>
+    </nav>
+
+    <div class="ml-64 flex-1 flex flex-col h-full relative w-[calc(100%-16rem)]">
+        <main id="view-download" class="flex-1 overflow-y-auto pt-12 px-12 pb-12">
+            <div class="max-w-6xl mx-auto space-y-8">
+                <div><h1 class="text-4xl font-headline font-bold text-on-surface mb-2">Telegram Downloader</h1><p class="text-sm font-body text-on-surface-variant max-w-2xl">Extraia e gerencie arquivos de cursos diretamente do Telegram para o Google Drive.</p></div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-2 bg-surface-container rounded-xl p-6 flex flex-col gap-4 shadow-lg border border-outline-variant/10">
+                        <div><label class="block text-xs font-label uppercase tracking-widest text-primary mb-2">Nome exato do Canal</label><input id="input-canal" type="text" placeholder="Ex: Matemática Criativa 2024 Ext." class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all"/></div>
+                        <div><label class="block text-xs font-label uppercase tracking-widest text-primary mb-2">ID da Pasta Raiz no Google Drive</label><input id="input-drive" type="text" placeholder="Cole aqui o ID da pasta onde os cursos serão salvos" class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all"/></div>
+                    </div>
+                    <div class="bg-surface-container rounded-xl p-6 flex flex-col justify-center items-center text-center border border-outline-variant/10 shadow-lg">
+                        <span class="material-symbols-outlined text-4xl text-primary mb-4">search</span>
+                        <p class="text-sm text-on-surface-variant mb-6">Escaneie o canal para encontrar as aulas.</p>
+                        <button onclick="buscarAulasBotao()" id="btn-buscar" class="w-full py-3 px-6 rounded-full bg-gradient-to-r from-primary to-primary-container text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.2)]">Buscar Aulas</button>
+                    </div>
+                </div>
+
+                <div class="bg-surface-container rounded-xl overflow-hidden flex flex-col shadow-lg border border-outline-variant/10">
+                    <div class="bg-surface-container-high px-6 py-4 flex justify-between items-center border-b border-outline-variant/10">
+                        <div class="flex items-center gap-6">
+                            <label class="flex items-center gap-3 cursor-pointer group">
+                                <input type="checkbox" id="check-all" onchange="toggleSelectAll(this)" class="w-5 h-5 rounded border-outline-variant text-primary bg-surface-container-highest focus:ring-primary/50" disabled>
+                                <span class="text-sm font-label uppercase tracking-widest text-on-surface">Selecionar Todos</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer text-xs text-on-surface-variant hover:text-on-surface transition-colors">
+                                <input type="checkbox" id="toggle-ocultar-baixados" onchange="toggleOcultarBaixados()" class="w-4 h-4 rounded border-outline-variant text-primary bg-surface-container-highest focus:ring-primary/50">
+                                <span class="font-label uppercase tracking-widest">Ocultar já baixados</span>
+                            </label>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span id="contador-selecionados" class="text-xs font-mono text-on-surface-variant/70 hidden">0 selecionado(s)</span>
+                            <button id="btn-parar" onclick="pararTransferencia()" class="px-5 py-2.5 rounded-full bg-surface-container-highest text-error font-label uppercase tracking-widest text-xs font-bold flex items-center gap-2 border border-outline-variant/15 opacity-50 cursor-not-allowed" disabled><span class="material-symbols-outlined text-[18px]">stop_circle</span><span class="btn-parar-label">Parar</span></button>
+                            <button id="btn-transferir" onclick="iniciarTransferencia()" class="px-5 py-2.5 rounded-full bg-tertiary text-[#002109] font-label uppercase tracking-widest text-xs font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(74,225,118,0.2)] opacity-50 cursor-not-allowed" disabled><span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_circle</span> Iniciar Transferência</button>
+                            <button id="btn-agendar" onclick="abrirModalAgendar()" class="px-5 py-2.5 rounded-full bg-surface-container-highest text-primary font-label uppercase tracking-widest text-xs font-bold flex items-center gap-2 border border-outline-variant/15 opacity-50 cursor-not-allowed" disabled><span class="material-symbols-outlined text-[18px]">schedule</span> Agendar</button>
+                        </div>
+                    </div>
+                    <div id="download-list" class="p-2 space-y-1 h-[450px] overflow-y-auto custom-scrollbar flex flex-col items-center justify-center">
+                        <span class="text-on-surface-variant/50 text-sm">Nenhuma busca realizada.</span>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-xl p-6 border border-outline-variant/15 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] pointer-events-none"></div>
+                    <div class="relative z-10 flex flex-col gap-6">
+                        <div class="flex justify-between items-end">
+                            <div class="flex flex-col gap-1 w-full max-w-[80%]">
+                                <h3 class="text-xs font-label uppercase tracking-widest text-primary">System Log</h3>
+                                <div id="system-log" class="text-sm font-mono text-on-surface h-[60px] overflow-y-auto custom-scrollbar">Aguardando comandos...<br></div>
+                            </div>
+                            <div class="flex flex-col items-end gap-0.5">
+                                <span id="progress-percent-dl" class="text-2xl font-headline font-bold text-primary">0%</span>
+                                <span id="progress-arquivos-dl" class="text-[10px] font-mono text-on-surface-variant/70 uppercase tracking-widest">0/0 arquivos</span>
+                            </div>
+                        </div>
+                        <div class="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden shadow-inner">
+                            <div id="progress-bar-dl" class="h-full bg-gradient-to-r from-primary to-primary-container w-[0%] rounded-full shadow-[0_0_10px_rgba(173,198,255,0.5)] transition-all duration-300"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <main id="view-library" class="hidden flex-1 overflow-y-auto pt-12 pb-24 px-12 xl:px-24">
+            <div class="mb-10 max-w-4xl flex items-end justify-between gap-6">
+                <div>
+                    <h2 class="font-headline text-[3.5rem] font-bold text-on-surface mb-4">The Archive</h2>
+                    <p class="font-body text-on-surface-variant text-lg">Acesse sua coleção curada sincronizada com o Google Drive.</p>
+                </div>
+                <button onclick="renderLibrary(true)" id="btn-refresh-library" class="flex items-center gap-2 px-5 py-2.5 rounded-full bg-surface-container-highest text-primary font-label uppercase tracking-widest text-xs font-bold border border-outline-variant/15 hover:brightness-110 active:scale-95 transition-all">
+                    <span class="material-symbols-outlined text-[18px]">refresh</span>
+                    Atualizar
+                </button>
+            </div>
+            <div class="mb-10 max-w-4xl">
+                <input id="search-courses" type="text" oninput="filtrarCursos()" placeholder="🔍 Buscar curso..." class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface placeholder-on-surface-variant/60 focus:outline-none focus:border-primary/50 transition-all">
+            </div>
+            <div id="course-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+            </div>
+            <div id="course-grid-empty" class="hidden mt-8 p-8 bg-surface-container-low rounded-xl text-center border border-outline-variant/20 text-on-surface-variant font-label uppercase tracking-widest text-sm">Nenhum curso encontrado</div>
+        </main>
+
+        <main id="view-settings" class="hidden flex-1 overflow-y-auto pt-12 px-12 pb-12">
+            <div class="max-w-4xl mx-auto space-y-8">
+                <div>
+                    <h1 class="text-4xl font-headline font-bold text-on-surface mb-2">Settings</h1>
+                    <p class="text-sm font-body text-on-surface-variant max-w-2xl">Configurações do aplicativo e caminhos do sistema.</p>
+                </div>
+
+                <div class="bg-surface-container rounded-xl p-6 flex flex-col gap-3 shadow-lg border border-outline-variant/10">
+                    <label class="block text-xs font-label uppercase tracking-widest text-primary">Pasta temporária de download</label>
+                    <p class="text-xs text-on-surface-variant">Arquivos baixados do Telegram são gravados aqui antes do upload e apagados em seguida. Se o Windows bloquear a exclusão, o caminho aparece no System Log.</p>
+                    <code id="settings-temp-path" class="block bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm font-mono text-on-surface break-all">Carregando...</code>
+                </div>
+
+                <div class="bg-surface-container rounded-xl p-6 flex flex-col gap-4 shadow-lg border border-outline-variant/10">
+                    <label class="block text-xs font-label uppercase tracking-widest text-primary">Reindexar cursos existentes</label>
+                    <p class="text-xs text-on-surface-variant">Gera um arquivo de ordem (<code class="text-primary">_ordem.json</code>) nas pastas de curso que ainda não possuem um. A ordenação inicial usa o número do nome do arquivo como melhor palpite disponível — cursos futuros já salvam a ordem real do canal automaticamente.</p>
+                    <button onclick="reindexarCursos()" id="btn-reindexar" class="self-start flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.15)]">
+                        <span class="material-symbols-outlined text-[18px]">sync</span>
+                        Reindexar Cursos Existentes
+                    </button>
+                    <div id="reindex-status" class="text-xs font-mono text-on-surface-variant hidden"></div>
+                </div>
+
+                <!-- M3: Verificação de sincronia Telegram ↔ Drive -->
+                <div class="bg-surface-container rounded-xl p-6 flex flex-col gap-4 shadow-lg border border-outline-variant/10">
+                    <label class="block text-xs font-label uppercase tracking-widest text-primary">Verificar Sincronia</label>
+                    <p class="text-xs text-on-surface-variant">Compara os arquivos do canal no Telegram com os que já estão no Drive e mostra as diferenças nos dois sentidos.</p>
+                    <div class="flex flex-col gap-2">
+                        <input id="sync-canal" type="text" placeholder="Nome do canal (Telegram)" class="bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:outline-none focus:border-primary/50">
+                        <input id="sync-drive" type="text" placeholder="ID da pasta raiz (Drive)" class="bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-2.5 text-sm text-on-surface font-mono placeholder-on-surface-variant/60 focus:outline-none focus:border-primary/50">
+                    </div>
+                    <button onclick="verificarSincronia()" id="btn-sync" class="self-start flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.15)]">
+                        <span class="material-symbols-outlined text-[18px]">fact_check</span>
+                        Verificar Sincronia
+                    </button>
+                    <div id="sync-status" class="text-xs font-mono text-on-surface-variant hidden"></div>
+
+                    <div id="sync-faltando-box" class="hidden flex flex-col gap-2 pt-2">
+                        <h4 class="text-xs font-label uppercase tracking-widest text-error flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">cloud_download</span>
+                            No Telegram mas faltam no Drive (<span id="sync-faltando-count">0</span>)
+                        </h4>
+                        <ul id="sync-faltando-list" class="max-h-[220px] overflow-y-auto custom-scrollbar bg-surface-container-highest rounded-lg p-3 text-xs font-mono space-y-1 border border-outline-variant/10"></ul>
+                        <button onclick="baixarTodosFaltantes()" id="btn-baixar-faltantes" class="hidden self-start flex items-center gap-2 px-4 py-2 rounded-full bg-tertiary text-[#002109] font-label uppercase tracking-widest text-[11px] font-bold hover:brightness-110 active:scale-95 transition-all">
+                            <span class="material-symbols-outlined text-[16px]">download</span>
+                            Baixar todos faltantes
+                        </button>
+                    </div>
+
+                    <div id="sync-extra-box" class="hidden flex flex-col gap-2 pt-2">
+                        <h4 class="text-xs font-label uppercase tracking-widest text-tertiary flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">cloud_upload</span>
+                            No Drive mas não estão no Telegram (<span id="sync-extra-count">0</span>)
+                        </h4>
+                        <ul id="sync-extra-list" class="max-h-[220px] overflow-y-auto custom-scrollbar bg-surface-container-highest rounded-lg p-3 text-xs font-mono space-y-1 border border-outline-variant/10"></ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <main id="view-player" class="hidden flex-1 w-full max-w-[1920px] mx-auto pt-12 p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start overflow-y-auto">
+            <div class="col-span-full flex justify-between items-center mb-2 bg-surface-container/30 p-4 rounded-xl border border-outline-variant/10">
+                <button onclick="voltarParaGrid()" class="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary border border-primary/30 hover:bg-primary hover:text-[#001a42] active:scale-95 transition-all font-label uppercase tracking-widest text-xs font-bold"><span class="material-symbols-outlined text-[18px]">arrow_back</span><span>Library</span></button>
+                <div class="flex items-center gap-4">
+                    <div class="flex flex-col items-end"><span id="progress-text" class="font-label text-xs uppercase text-primary">0/0 Aulas Assistidas</span><span id="progress-percent" class="text-[10px] text-on-surface-variant mt-0.5">0%</span></div>
+                    <div class="w-32 h-2 rounded-full bg-surface-container-highest overflow-hidden relative"><div id="progress-bar" class="absolute top-0 left-0 h-full w-[0%] bg-gradient-to-r from-primary to-primary-container rounded-full"></div></div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8 flex flex-col gap-6">
+                <div class="relative w-full aspect-video bg-[#050505] rounded-xl lg:rounded-[2rem] overflow-hidden group shadow-[0px_20px_40px_rgba(0,0,0,0.6)] flex items-center justify-center">
+
+                    <div id="player-placeholder" class="absolute inset-0 bg-surface-container flex flex-col items-center justify-center z-10">
+                        <span class="material-symbols-outlined text-6xl text-primary/40 mb-4 animate-pulse">play_circle</span>
+                        <h2 id="video-title" class="font-headline text-xl font-bold text-on-surface text-center px-4">Selecione uma aula na lista para começar...</h2>
+                    </div>
+
+                    <div id="player-fallback" class="hidden absolute inset-0 bg-surface-container flex flex-col items-center justify-center z-30 px-6 text-center">
+                        <span class="material-symbols-outlined text-6xl text-error/80 mb-4">error</span>
+                        <h2 class="font-headline text-xl font-bold text-on-surface mb-2">Não consegui reproduzir este arquivo</h2>
+                        <p id="player-fallback-msg" class="text-sm text-on-surface-variant mb-6 max-w-lg">Tente abri-lo direto no Google Drive.</p>
+                        <a id="player-fallback-link" href="#" target="_blank" rel="noopener" class="px-6 py-3 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.2)] flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[18px]">open_in_new</span>
+                            Abrir no Google Drive
+                        </a>
+                    </div>
+
+                    <video id="video-player"
+                      class="absolute inset-0 w-full h-full rounded-xl hidden z-20"
+                      playsinline controls>
+                    </video>
+                    <iframe id="video-iframe"
+                      class="absolute inset-0 w-full h-full border-0 hidden z-20"
+                      src="" allow="autoplay" allowfullscreen></iframe>
+                </div>
+
+                <div class="flex flex-col gap-3 px-2">
+                    <h1 id="course-title-header" class="font-headline text-3xl font-bold text-on-surface">Nome do Curso</h1>
+                    <div id="player-warn" class="hidden text-xs font-label uppercase tracking-widest text-error/90 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">lock</span>
+                        <span>Este arquivo não está público — pode não abrir no player.</span>
+                    </div>
+                    <div id="retomando-msg" class="hidden text-xs font-label uppercase tracking-widest text-primary/80 flex items-center gap-2 transition-opacity">
+                        <span class="material-symbols-outlined text-[16px]">play_circle</span>
+                        <span id="retomando-texto"></span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2 px-2 mt-2">
+                    <div class="flex justify-between items-center">
+                        <label for="lesson-notes" class="text-xs font-label uppercase tracking-widest text-primary">Anotações</label>
+                        <span id="notes-saved-indicator" class="hidden text-xs font-label uppercase tracking-widest text-tertiary items-center gap-1 transition-opacity">
+                            <span class="material-symbols-outlined text-[14px]">check</span>
+                            Salvo
+                        </span>
+                    </div>
+                    <textarea id="lesson-notes" disabled rows="4" oninput="_agendarSalvarNotas()" placeholder="Escreva suas anotações sobre esta aula..." class="w-full resize-y bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface placeholder-on-surface-variant/60 focus:outline-none focus:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed custom-scrollbar"></textarea>
+                </div>
+            </div>
+
+            <aside class="lg:col-span-4 h-[calc(100vh-14rem)] flex flex-col bg-surface-container-low/50 backdrop-blur-sm rounded-2xl border border-outline-variant/10 shadow-[0px_10px_30px_rgba(0,0,0,0.2)]">
+                <div class="p-6 pb-4 bg-surface-container-low relative z-10 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)] flex justify-between items-center">
+                    <h3 class="font-headline text-xl font-bold tracking-tight">Conteúdo do Curso</h3>
+                    <button onclick="refreshAulasDoCurso()" id="btn-refresh-lessons" title="Atualizar lista de aulas" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-highest text-primary font-label uppercase tracking-widest text-[10px] font-bold border border-outline-variant/15 hover:brightness-110 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                        <span class="material-symbols-outlined text-[16px]">refresh</span>
+                        Atualizar
+                    </button>
+                </div>
+                <div class="px-4 pt-2 pb-3 bg-surface-container-low">
+                    <input id="search-lessons" type="text" oninput="filtrarAulas()" placeholder="🔍 Buscar aula..." class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:outline-none focus:border-primary/50 transition-all">
+                </div>
+                <div id="lesson-list" class="flex-1 overflow-y-auto px-4 py-2 space-y-2 custom-scrollbar">
+                    </div>
+                <div id="lesson-list-empty" class="hidden px-6 py-8 text-center text-on-surface-variant/70 text-sm font-label uppercase tracking-widest">Nenhuma aula encontrada</div>
+            </aside>
+        </main>
+    </div>
+
+    <div id="confirm-modal" class="hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
+        <div class="bg-surface-container-high rounded-2xl p-8 max-w-md w-full border border-outline-variant/20 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+            <div class="flex items-start gap-4 mb-6">
+                <span class="material-symbols-outlined text-primary text-[32px]">help</span>
+                <div class="flex-1">
+                    <h3 class="font-headline text-lg font-bold text-on-surface mb-2">Marcar aulas anteriores?</h3>
+                    <p id="confirm-modal-msg" class="text-sm text-on-surface-variant"></p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 flex-wrap">
+                <button id="confirm-modal-no" class="px-5 py-2.5 rounded-full bg-surface-container-highest text-on-surface font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all">Não, só esta</button>
+                <button id="confirm-modal-yes" class="px-5 py-2.5 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all">Sim, marcar todas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-perfis" class="hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
+        <div class="bg-surface-container-high rounded-2xl p-8 max-w-md w-full border border-outline-variant/20 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+            <div class="flex items-start gap-4 mb-6">
+                <span class="material-symbols-outlined text-primary text-[32px]">group</span>
+                <div class="flex-1">
+                    <h3 class="font-headline text-lg font-bold text-on-surface mb-2">Perfis</h3>
+                    <p class="text-sm text-on-surface-variant">Escolha um perfil ou crie um novo.</p>
+                </div>
+                <button onclick="fecharModalPerfis()" class="text-on-surface-variant hover:text-on-surface transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <ul id="lista-perfis" class="flex flex-col gap-2 mb-6 max-h-[300px] overflow-y-auto custom-scrollbar"></ul>
+            <div class="flex items-center gap-2">
+                <input id="input-novo-perfil" type="text" placeholder="Nome do novo perfil" class="flex-1 bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:outline-none focus:border-primary/50 transition-all">
+                <button onclick="criarPerfil()" class="px-5 py-2.5 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all">Criar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-agendar" class="hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
+        <div class="bg-surface-container-high rounded-2xl p-8 max-w-md w-full border border-outline-variant/20 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+            <div class="flex items-start gap-4 mb-6">
+                <span class="material-symbols-outlined text-primary text-[32px]">schedule</span>
+                <div class="flex-1">
+                    <h3 class="font-headline text-lg font-bold text-on-surface mb-2">Agendar Transferência</h3>
+                    <p class="text-sm text-on-surface-variant">A transferência dos arquivos selecionados será iniciada automaticamente no horário definido.</p>
+                </div>
+                <button onclick="fecharModalAgendar()" class="text-on-surface-variant hover:text-on-surface transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="flex flex-col gap-3 mb-4">
+                <label class="text-xs font-label uppercase tracking-widest text-primary">Data e hora</label>
+                <input id="input-agendar-datahora" type="datetime-local" class="bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-2.5 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all">
+            </div>
+            <div id="lista-agendamentos-wrap" class="hidden flex-col gap-2 mb-6">
+                <label class="text-xs font-label uppercase tracking-widest text-primary">Agendamentos pendentes</label>
+                <ul id="lista-agendamentos" class="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar"></ul>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button onclick="fecharModalAgendar()" class="px-5 py-2.5 rounded-full bg-surface-container-highest text-on-surface font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all">Cancelar</button>
+                <button onclick="_salvarAgendamento()" class="px-5 py-2.5 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all">Agendar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================
+        // GLOBAIS — precisam existir antes de qualquer uso
+        // =========================================================
+        function _getPrefixo() {
+            const perfil = localStorage.getItem('perfilAtivo') || 'default';
+            return 'perfil_' + perfil + '_';
+        }
+
+        let _libraryCarregando = false;
+
+        // Sanitiza valor inválido persistido em versões antigas (ex: ".")
+        if (localStorage.getItem('rootDriveRootId') === '.') {
+            localStorage.setItem('rootDriveRootId', '1Q19UVnVgV9BApx-V9Aj_tV_1NHM2fC6i');
+        }
+
+        // =========================================================
+        // ESTADO PERSISTENTE DA LIBRARY (não destruir DOM, só ocultar)
+        // =========================================================
+        const libraryState = {
+            subview: 'grid',          // 'grid' | 'player'
+            cursoAtivo: null,         // { id, nome }
+            aulaAtiva: null,          // { id, title, tempoAtual }
+            scrollGrid: 0,            // scroll da grade de cursos
+            scrollPlayer: 0,          // scroll da view do player (geral)
+            scrollLessonList: 0,      // scroll da lista de aulas dentro do player
+            gridLoaded: false,        // evita recarregar cursos a cada revisita
+        };
+
+        function _salvarScrolls() {
+            const vLib = document.getElementById('view-library');
+            const vPlayer = document.getElementById('view-player');
+            const lessonList = document.getElementById('lesson-list');
+            if (vLib && vLib.style.display !== 'none') libraryState.scrollGrid = vLib.scrollTop;
+            if (vPlayer && vPlayer.style.display !== 'none') libraryState.scrollPlayer = vPlayer.scrollTop;
+            if (lessonList) libraryState.scrollLessonList = lessonList.scrollTop;
+        }
+
+        function _restaurarScrolls() {
+            // rAF para garantir que o display já foi aplicado antes de escrever scrollTop.
+            requestAnimationFrame(() => {
+                const vLib = document.getElementById('view-library');
+                const vPlayer = document.getElementById('view-player');
+                const lessonList = document.getElementById('lesson-list');
+                if (vLib) vLib.scrollTop = libraryState.scrollGrid;
+                if (vPlayer) vPlayer.scrollTop = libraryState.scrollPlayer;
+                if (lessonList) lessonList.scrollTop = libraryState.scrollLessonList;
+            });
+        }
+
+        // NAVEGAÇÃO E LOGS
+        function showView(viewName) {
+            // 1. Antes de esconder, capturamos a posição do scroll atual.
+            _salvarScrolls();
+
+            // 2. Esconde tudo — nunca destruímos o DOM, só alteramos display.
+            document.getElementById('view-download').style.display = 'none';
+            document.getElementById('view-library').style.display = 'none';
+            document.getElementById('view-player').style.display = 'none';
+            document.getElementById('view-settings').style.display = 'none';
+
+            // 3. Exibe a view solicitada. 'library' delega para o subview salvo.
+            if (viewName === 'download') {
+                document.getElementById('view-download').style.display = 'block';
+            } else if (viewName === 'settings') {
+                document.getElementById('view-settings').style.display = 'block';
+            } else if (viewName === 'player') {
+                document.getElementById('view-player').style.display = 'grid';
+                libraryState.subview = 'player';
+            } else if (viewName === 'library') {
+                if (libraryState.subview === 'player' && libraryState.cursoAtivo) {
+                    // Usuário estava no player antes de sair — volta para ele intacto.
+                    document.getElementById('view-player').style.display = 'grid';
+                } else {
+                    document.getElementById('view-library').style.display = 'block';
+                    libraryState.subview = 'grid';
+                    // Só carrega cursos na primeira visita — revisitas reaproveitam o DOM.
+                    if (!libraryState.gridLoaded) renderLibrary();
+                }
+            }
+
+            // 4. Menu lateral: player é um subview da Library, então highlight vai no item Library.
+            const navKey = (viewName === 'player') ? 'library' : viewName;
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.className = "nav-item flex items-center gap-4 px-4 py-3 rounded-lg text-[#e5e2e1]/50 hover:text-on-surface hover:bg-surface-container-high transition-all";
+            });
+            const activeNav = document.getElementById('nav-' + navKey);
+            if(activeNav) activeNav.className = "nav-item flex items-center gap-4 px-4 py-3 rounded-lg text-primary font-bold border-r-2 border-primary bg-gradient-to-r from-primary/10 to-transparent transition-all";
+
+            if (viewName === 'settings') renderSettings();
+
+            _restaurarScrolls();
+        }
+
+        // Botão "Voltar à Biblioteca" no player: volta explicitamente pra grade.
+        function voltarParaGrid() {
+            // P2 — última chance de capturar a posição antes de sair do player.
+            _tentarCapturarPosicao();
+            libraryState.subview = 'grid';
+            showView('library');
+            // Reflete imediatamente qualquer marcação feita no player sem refazer consulta ao Drive.
+            _atualizarProgressoCards();
+        }
+
+        // Refresh da lista de aulas SEM tocar no vídeo em reprodução.
+        // Re-consulta o Drive, reordena via _ordem.json e re-renderiza apenas a aside.
+        async function refreshAulasDoCurso() {
+            if (!libraryState.cursoAtivo) return;
+            const courseId = libraryState.cursoAtivo.id;
+            const btn = document.getElementById('btn-refresh-lessons');
+            const icon = btn && btn.querySelector('.material-symbols-outlined');
+
+            if (icon) icon.classList.add('animate-spin');
+            if (btn) btn.disabled = true;
+
+            const inicio = Date.now();
+
+            try {
+                const promessaDrive = eel.carregar_aulas_curso(courseId)();
+                const promessaTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000));
+                const resp = await Promise.race([promessaDrive, promessaTimeout]);
+
+                if (resp && !resp.erro) {
+                    currentCourseLessons = resp.aulas;
+                    // renderPlayerUI usa libraryState.aulaAtiva.id (via currentLessonId)
+                    // pra recolocar o highlight na aula que está tocando.
+                    // O iframe NÃO é reatribuído aqui — o vídeo continua intacto.
+                    renderPlayerUI();
+                } else {
+                    console.warn('Falha ao atualizar aulas:', resp && (resp.mensagem || resp.erro));
+                }
+            } catch (e) {
+                console.warn('Erro ao atualizar aulas:', e);
+            } finally {
+                // Mantém o ícone girando por no mínimo 800ms para dar feedback visível
+                // mesmo quando a resposta do Drive chega quase instantânea.
+                const decorrido = Date.now() - inicio;
+                const restante = Math.max(0, 800 - decorrido);
+                setTimeout(() => {
+                    if (icon) icon.classList.remove('animate-spin');
+                    if (btn) btn.disabled = false;
+                }, restante);
+            }
+        }
+
+        // Settings: mostra pasta temp vinda do Python
+        async function renderSettings() {
+            const el = document.getElementById('settings-temp-path');
+            el.innerText = 'Carregando...';
+            try {
+                const path = await eel.obter_pasta_temp()();
+                el.innerText = path || '(indisponível)';
+            } catch (e) {
+                el.innerText = 'Erro ao obter caminho da pasta temp.';
+            }
+            // Limpa status antigo do reindex ao reabrir Settings
+            const st = document.getElementById('reindex-status');
+            if (st) { st.classList.add('hidden'); st.innerText = ''; }
+            // M3: pré-preenche os inputs de sincronia com o que já existe no Download Center.
+            const syncCanal = document.getElementById('sync-canal');
+            const syncDrive = document.getElementById('sync-drive');
+            if (syncCanal && !syncCanal.value) {
+                syncCanal.value = document.getElementById('input-canal').value || '';
+            }
+            if (syncDrive && !syncDrive.value) {
+                syncDrive.value = document.getElementById('input-drive').value
+                    || localStorage.getItem('rootDriveRootId') || '';
+            }
+        }
+
+        async function reindexarCursos() {
+            const rootId = document.getElementById('input-drive').value || localStorage.getItem('rootDriveRootId');
+            const status = document.getElementById('reindex-status');
+            const btn = document.getElementById('btn-reindexar');
+
+            if (!rootId) {
+                status.classList.remove('hidden');
+                status.innerText = '⚠️ Defina o ID da pasta raiz em Download Center primeiro.';
+                return;
+            }
+
+            btn.disabled = true; btn.classList.add('opacity-60');
+            status.classList.remove('hidden');
+            status.innerText = 'Reindexando... pode levar alguns segundos.';
+
+            try {
+                const resp = await eel.reindexar_cursos_drive(rootId)();
+                if (resp.erro) {
+                    status.innerText = `❌ ${resp.mensagem || resp.erro}`;
+                } else {
+                    const feitos = (resp.reindexados || []).length;
+                    const pulados = (resp.ja_tinham || []).length;
+                    status.innerText = `✅ ${feitos} curso(s) reindexado(s). ${pulados} já tinham _ordem.json.`;
+                }
+            } catch (e) {
+                status.innerText = '❌ Falha ao conectar com o Python.';
+            } finally {
+                btn.disabled = false; btn.classList.remove('opacity-60');
+            }
+        }
+
+        // M3: guarda a última verificação pra que "Baixar faltantes" saiba quais
+        // IDs pré-selecionar no Download Center.
+        let _syncFaltandoCache = null;
+
+        function _escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, ch => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[ch]);
+        }
+
+        async function verificarSincronia() {
+            const canal = document.getElementById('sync-canal').value.trim();
+            const drive = document.getElementById('sync-drive').value.trim();
+            if (!canal || !drive) {
+                alert('Preencha o canal e o ID da pasta do Drive.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-sync');
+            const status = document.getElementById('sync-status');
+            const boxF = document.getElementById('sync-faltando-box');
+            const boxE = document.getElementById('sync-extra-box');
+
+            btn.disabled = true; btn.classList.add('opacity-60');
+            status.classList.remove('hidden');
+            status.innerText = '🔎 Consultando Telegram e Drive...';
+            boxF.classList.add('hidden');
+            boxE.classList.add('hidden');
+
+            let resp;
+            try {
+                resp = await eel.verificar_sincronia(canal, drive)();
+            } catch (e) {
+                resp = { erro: 'Falha ao conectar com o Python.' };
+            }
+
+            btn.disabled = false; btn.classList.remove('opacity-60');
+
+            if (!resp || resp.erro) {
+                status.innerText = '❌ ' + ((resp && resp.erro) || 'Erro desconhecido.');
+                return;
+            }
+
+            const faltando = resp.faltando_no_drive || [];
+            const extra = resp.extra_no_drive || [];
+            _syncFaltandoCache = { canal, drive, faltando };
+
+            status.innerText = `✅ ${resp.total_telegram} no Telegram • ${faltando.length} faltam no Drive • ${extra.length} extra(s) no Drive.`;
+
+            // Lista faltantes
+            document.getElementById('sync-faltando-count').innerText = faltando.length;
+            const listF = document.getElementById('sync-faltando-list');
+            listF.innerHTML = faltando.length === 0
+                ? '<li class="text-on-surface-variant/60">Nenhum — seu Drive está em dia.</li>'
+                : faltando.map(f => `<li class="text-on-surface">• ${_escapeHtml(f.nome_arquivo)} <span class="text-on-surface-variant/60">(${_escapeHtml(f.tamanho)})</span></li>`).join('');
+            document.getElementById('btn-baixar-faltantes').classList.toggle('hidden', faltando.length === 0);
+            boxF.classList.remove('hidden');
+
+            // Lista extras (meramente informativo)
+            document.getElementById('sync-extra-count').innerText = extra.length;
+            const listE = document.getElementById('sync-extra-list');
+            listE.innerHTML = extra.length === 0
+                ? '<li class="text-on-surface-variant/60">Nenhum — tudo veio do Telegram.</li>'
+                : extra.map(e => `<li class="text-on-surface">• ${_escapeHtml(e.nome)}</li>`).join('');
+            boxE.classList.remove('hidden');
+        }
+
+        function baixarTodosFaltantes() {
+            if (!_syncFaltandoCache || !_syncFaltandoCache.faltando.length) return;
+            const { canal, drive, faltando } = _syncFaltandoCache;
+
+            // Pré-preenche o Download Center e sinaliza a pré-seleção pra busca.
+            document.getElementById('input-canal').value = canal;
+            document.getElementById('input-drive').value = drive;
+            window._sincroniaPreselect = new Set(faltando.map(f => String(f.id)));
+
+            showView('download');
+            // Dispara a busca automaticamente — ao renderizar, a pré-seleção é aplicada.
+            buscarAulasBotao();
+        }
+
+        function addLog(text) {
+            const logBox = document.getElementById('system-log');
+            logBox.innerHTML += `> ${text}<br>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // PONTE PYTHON -> HTML
+        eel.expose(addLogVisual);
+        function addLogVisual(texto) { addLog(texto); }
+
+        eel.expose(atualizarBarraVisual);
+        function atualizarBarraVisual(porcentagem) {
+            document.getElementById('progress-bar-dl').style.width = porcentagem + '%';
+            document.getElementById('progress-percent-dl').innerText = Math.round(porcentagem) + '%';
+        }
+
+        // M2: barra reflete bytes reais (não contagem de arquivos). Contador "X/Y arquivos"
+        // fica ao lado pra dar a noção de itens concluídos.
+        eel.expose(progressoBytesVisual);
+        function progressoBytesVisual(bytesBaixados, bytesTotais, concluidos, total) {
+            const pct = bytesTotais > 0 ? Math.min(100, (bytesBaixados / bytesTotais) * 100) : 0;
+            document.getElementById('progress-bar-dl').style.width = pct + '%';
+            document.getElementById('progress-percent-dl').innerText = Math.round(pct) + '%';
+            const contador = document.getElementById('progress-arquivos-dl');
+            if (contador) contador.innerText = `${concluidos}/${total} arquivos`;
+        }
+
+        eel.expose(finalizarTransferenciaVisual);
+        function finalizarTransferenciaVisual() {
+            const btnParar = document.getElementById('btn-parar');
+            btnParar.disabled = true;
+            btnParar.classList.add('opacity-50', 'cursor-not-allowed');
+            // M1: restaura o label original após uma parada cooperativa.
+            const label = btnParar.querySelector('.btn-parar-label');
+            if (label) label.innerText = 'Parar';
+            document.getElementById('btn-transferir').disabled = false;
+            document.getElementById('btn-transferir').classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        // Guarda o resultado da busca para mandar o índice de ordem junto na transferência.
+        let _aulasEncontradas = [];
+
+        // COMANDOS DE DOWNLOAD
+        async function buscarAulasBotao() {
+            const canal = document.getElementById('input-canal').value;
+            if(!canal) return alert("Digite o nome do canal!");
+            // Pasta do Drive é opcional na busca, mas sem ela não dá pra marcar "já no Drive".
+            const pasta = document.getElementById('input-drive').value || localStorage.getItem('rootDriveRootId') || null;
+            const btnBuscar = document.getElementById('btn-buscar');
+            btnBuscar.innerText = "Buscando...";
+            addLog(`🔎 Lendo canal '${canal}'...`);
+
+            try {
+                let resposta = await eel.buscar_aulas_real(canal, pasta)();
+                if (resposta.erro) { addLog(`❌ ERRO: ${resposta.erro}`); btnBuscar.innerText = "Buscar Aulas"; return; }
+                const list = document.getElementById('download-list'); list.innerHTML = ''; list.classList.remove('items-center', 'justify-center');
+                if (resposta.aulas.length === 0) { list.innerHTML = '<span>Nenhuma aula encontrada.</span>'; btnBuscar.innerText = "Buscar Aulas"; return; }
+
+                _aulasEncontradas = resposta.aulas;
+                let contadorJaNoDrive = 0;
+
+                resposta.aulas.forEach(aula => {
+                    if (aula.ja_no_drive) contadorJaNoDrive++;
+                    // Visual diferenciado para quem já está no Drive.
+                    const baseClasses = 'flex items-center justify-between p-4 rounded-lg transition-colors group';
+                    const rowClasses = aula.ja_no_drive
+                        ? `${baseClasses} bg-surface-container opacity-60 dl-item-ja-drive`
+                        : `${baseClasses} bg-surface-container hover:bg-surface-container-low`;
+                    const iconCell = aula.ja_no_drive
+                        ? `<span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">check_circle</span>`
+                        : `<span class="material-symbols-outlined text-on-surface-variant">video_file</span>`;
+                    const statusCell = aula.ja_no_drive
+                        ? `<span class="text-xs font-mono text-tertiary flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">cloud_done</span>Já no Drive</span>`
+                        : `<span class="text-xs font-mono text-tertiary">Pronto</span>`;
+                    const checkboxAttrs = aula.ja_no_drive
+                        ? `disabled`
+                        : `checked`;
+
+                    list.innerHTML += `
+                        <div class="${rowClasses}">
+                            <div class="flex items-center gap-4">
+                                <input type="checkbox" value="${aula.id}" onchange="atualizarContadorSelecionados()" class="dl-check w-5 h-5 rounded border-outline-variant text-primary bg-surface-container-highest focus:ring-primary/50" ${checkboxAttrs}>
+                                ${iconCell}
+                                <div class="flex flex-col"><span class="text-sm font-medium text-on-surface">${aula.nome}</span><span class="text-xs text-on-surface-variant/70">${aula.tamanho}</span></div>
+                            </div>${statusCell}
+                        </div>`;
+                });
+                // M3: se chegamos aqui vindos de "Baixar faltantes" (Settings), a
+                // pré-seleção já foi calculada lá — aplicamos antes do contador.
+                if (window._sincroniaPreselect) {
+                    document.querySelectorAll('.dl-check').forEach(cb => {
+                        if (cb.disabled) return;
+                        cb.checked = window._sincroniaPreselect.has(String(cb.value));
+                    });
+                    const quantos = window._sincroniaPreselect.size;
+                    window._sincroniaPreselect = null;
+                    addLog(`🎯 ${quantos} arquivo(s) pré-selecionado(s) a partir da verificação de sincronia.`);
+                }
+                atualizarContadorSelecionados();
+                btnBuscar.innerText = "Buscar Novamente";
+                _salvarCanalNoHistorico(canal);
+                const novos = resposta.aulas.length - contadorJaNoDrive;
+                addLog(`✅ Sucesso! ${resposta.aulas.length} encontrados — ${novos} novo(s), ${contadorJaNoDrive} já no Drive.`);
+                document.getElementById('check-all').disabled = false;
+                document.getElementById('check-all').checked = novos > 0;
+                document.getElementById('btn-transferir').disabled = false;
+                document.getElementById('btn-transferir').classList.remove('opacity-50', 'cursor-not-allowed');
+                const btnAgendar = document.getElementById('btn-agendar');
+                if (btnAgendar) {
+                    btnAgendar.disabled = false;
+                    btnAgendar.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+
+                // Aplica o estado atual do toggle "Ocultar já baixados".
+                toggleOcultarBaixados();
+            } catch (erro) { addLog("❌ Erro de conexão."); btnBuscar.innerText = "Buscar Aulas"; }
+        }
+
+        function toggleOcultarBaixados() {
+            const el = document.getElementById('toggle-ocultar-baixados');
+            if (!el) return;
+            const ocultar = el.checked;
+            document.querySelectorAll('.dl-item-ja-drive').forEach(row => {
+                row.style.display = ocultar ? 'none' : '';
+            });
+            atualizarContadorSelecionados();
+        }
+
+        // M3: mostra "X selecionado(s)" em tempo real ao lado dos botões. Só conta
+        // checkboxes visíveis e habilitados — itens "já no Drive" nunca entram.
+        function atualizarContadorSelecionados() {
+            const contador = document.getElementById('contador-selecionados');
+            if (!contador) return;
+            const selecionados = document.querySelectorAll('.dl-check:checked:not([disabled])').length;
+            if (selecionados === 0) {
+                contador.classList.add('hidden');
+            } else {
+                contador.classList.remove('hidden');
+                contador.innerText = `${selecionados} selecionado${selecionados === 1 ? '' : 's'}`;
+            }
+        }
+
+        async function iniciarTransferencia() {
+            const canal = document.getElementById('input-canal').value;
+            const pasta = document.getElementById('input-drive').value;
+
+            if(!canal || !pasta) { alert("Preencha o Canal e a Pasta do Drive!"); return; }
+
+            const checkboxes = document.querySelectorAll('.dl-check:checked');
+            let ids_para_baixar = [];
+            checkboxes.forEach(cb => ids_para_baixar.push(cb.value));
+
+            if(ids_para_baixar.length === 0) { alert("Selecione pelo menos um arquivo!"); return; }
+
+            // Mapa {msg_id -> ordem} — a posição real no canal capturada durante a busca.
+            const ordens = {};
+            _aulasEncontradas.forEach(a => { ordens[String(a.id)] = a.ordem; });
+
+            document.getElementById('btn-transferir').disabled = true; document.getElementById('btn-transferir').classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('btn-parar').disabled = false; document.getElementById('btn-parar').classList.remove('opacity-50', 'cursor-not-allowed');
+            atualizarBarraVisual(0);
+
+            // Salva o ID da pasta na memória para a Library usar depois
+            localStorage.setItem('rootDriveRootId', pasta);
+
+            await eel.iniciar_transferencia_real(canal, pasta, ids_para_baixar, ordens)();
+        }
+
+        // Funções de histórico de canais
+        function _carregarHistoricoCanais() {
+            const historyContainer = document.getElementById('canal-history');
+            if (!historyContainer) return;
+
+            let historico = [];
+            try {
+                const historicoStr = localStorage.getItem('canaisHistorico');
+                if (historicoStr) {
+                    historico = JSON.parse(historicoStr);
+                }
+            } catch (e) {
+                console.warn('Erro ao carregar histórico de canais:', e);
+                historico = [];
+            }
+
+            // Limpa o container
+            historyContainer.innerHTML = '';
+
+            // Renderiza os chips
+            historico.forEach(canal => {
+                const canalEsc = canal.replace(/'/g, "\\'");
+                const chip = document.createElement('div');
+                chip.className = 'flex items-center gap-1 px-3 py-1 rounded-full bg-surface-container-highest border border-outline-variant/20 text-xs text-primary cursor-pointer hover:brightness-110 transition-all';
+                chip.innerHTML = `
+                    <span onclick="_preencherCanal('${canalEsc}')" class="flex-1">${canal}</span>
+                    <span onclick="_removerCanalDoHistorico('${canalEsc}')" class="text-on-surface-variant hover:text-error ml-1 font-bold leading-none">×</span>
+                `;
+                historyContainer.appendChild(chip);
+            });
+        }
+
+        function _salvarCanalNoHistorico(nome) {
+            if (!nome) return;
+
+            let historico = [];
+            try {
+                const historicoStr = localStorage.getItem('canaisHistorico');
+                if (historicoStr) {
+                    historico = JSON.parse(historicoStr);
+                }
+            } catch (e) {
+                historico = [];
+            }
+
+            // Remove se já existir para não duplicar
+            const index = historico.indexOf(nome);
+            if (index !== -1) {
+                historico.splice(index, 1);
+            }
+
+            // Adiciona no início
+            historico.unshift(nome);
+
+            // Limita a 10 itens
+            if (historico.length > 10) {
+                historico = historico.slice(0, 10);
+            }
+
+            try {
+                localStorage.setItem('canaisHistorico', JSON.stringify(historico));
+            } catch (e) {
+                console.warn('Erro ao salvar histórico de canais:', e);
+            }
+        }
+
+        function _removerCanalDoHistorico(nome) {
+            if (!nome) return;
+
+            let historico = [];
+            try {
+                const historicoStr = localStorage.getItem('canaisHistorico');
+                if (historicoStr) {
+                    historico = JSON.parse(historicoStr);
+                }
+            } catch (e) {
+                historico = [];
+            }
+
+            // Remove o canal
+            const index = historico.indexOf(nome);
+            if (index !== -1) {
+                historico.splice(index, 1);
+            }
+
+            try {
+                localStorage.setItem('canaisHistorico', JSON.stringify(historico));
+            } catch (e) {
+                console.warn('Erro ao remover canal do histórico:', e);
+            }
+        }
+
+        async function pararTransferencia() {
+            // M1: feedback imediato — não dependemos do retorno do Python pra
+            // mudar o visual. A flag já foi setada do lado do Python; o arquivo
+            // atual termina e aí finalizarTransferenciaVisual() restaura tudo.
+            const btn = document.getElementById('btn-parar');
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            const label = btn.querySelector('.btn-parar-label');
+            if (label) label.innerText = 'Parando...';
+            addLog('⏳ Parada registrada — finalizando arquivo atual...');
+            try { await eel.parar_transferencia_python()(); } catch (e) {}
+        }
+
+        function toggleSelectAll(source) {
+            // Só afeta checkboxes habilitados — os "já no Drive" ficam sempre desmarcados.
+            document.querySelectorAll('.dl-check:not([disabled])').forEach(cb => cb.checked = source.checked);
+            atualizarContadorSelecionados();
+        }
+
+        // =========================================================
+        // LÓGICA DA BIBLIOTECA E PLAYER PERSISTENTE
+        // =========================================================
+        const DB_KEY = _getPrefixo() + 'gerenciador_cursos_progresso';
+        const LAST_LESSON_KEY = _getPrefixo() + 'gerenciador_cursos_last_lesson';
+        const LESSONS_MAP_KEY = _getPrefixo() + 'gerenciador_cursos_lessons_map';
+        let currentCourseLessons = [];
+        let currentCourseId = null;
+        let _retomandoTimer = null;
+
+        function getProgress() { return JSON.parse(localStorage.getItem(DB_KEY) || '{}'); }
+
+        function getLastLessons() { return JSON.parse(localStorage.getItem(LAST_LESSON_KEY) || '{}'); }
+        function saveLastLesson(courseId, lessonId, lessonTitle) {
+            const data = getLastLessons();
+            data[courseId] = { lessonId, lessonTitle };
+            localStorage.setItem(LAST_LESSON_KEY, JSON.stringify(data));
+        }
+        function getLastLesson(courseId) { return getLastLessons()[courseId] || null; }
+
+        function getLessonsMap() { return JSON.parse(localStorage.getItem(LESSONS_MAP_KEY) || '{}'); }
+        function saveLessonsMap(courseId, aulas) {
+            const data = getLessonsMap();
+            data[courseId] = aulas.map(a => a.id);
+            localStorage.setItem(LESSONS_MAP_KEY, JSON.stringify(data));
+        }
+
+        function _mostrarRetomando(texto) {
+            const el = document.getElementById('retomando-msg');
+            if (!el) return;
+            document.getElementById('retomando-texto').innerText = texto;
+            el.classList.remove('hidden');
+            clearTimeout(_retomandoTimer);
+            _retomandoTimer = setTimeout(() => el.classList.add('hidden'), 3000);
+        }
+
+        // P2 — auto-save silencioso de posição da aula.
+        // O player preview do Drive é cross-origin, então não dá pra ler
+        // currentTime diretamente. Mandamos {event:"listening"} (protocolo YT,
+        // que alguns embeds seguem) e esperamos o iframe devolver currentTime
+        // via postMessage. Na prática, o Drive normalmente não responde — e
+        // é por isso que ZERO elementos visuais foram adicionados; se um dia
+        // começarem a responder, a captura passa a acontecer automaticamente.
+        const LESSON_TIME_PREFIX = _getPrefixo() + 'lessonTime_';
+
+        function _formatTime(seg) {
+            const h = Math.floor(seg / 3600);
+            const m = Math.floor((seg % 3600) / 60);
+            const s = seg % 60;
+            const pad = n => String(n).padStart(2, '0');
+            return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+        }
+
+        function _getLessonTime(lessonId) {
+            try { return JSON.parse(localStorage.getItem(LESSON_TIME_PREFIX + lessonId) || 'null'); }
+            catch (e) { return null; }
+        }
+
+        function _setLessonTime(lessonId, seg) {
+            localStorage.setItem(
+                LESSON_TIME_PREFIX + lessonId,
+                JSON.stringify({ time: seg, savedAt: Date.now() })
+            );
+        }
+
+        // Listener global: qualquer mensagem vinda do iframe que traga um
+        // currentTime numérico é persistida na aula ativa. Registrado uma
+        // única vez na carga do script — não acumula handlers.
+        window.addEventListener('message', (ev) => {
+            if (!libraryState.aulaAtiva) return;
+            let data = ev.data;
+            if (typeof data === 'string') {
+                try { data = JSON.parse(data); } catch (_e) { return; }
+            }
+            if (!data || typeof data !== 'object') return;
+            const t = (typeof data.currentTime === 'number') ? data.currentTime
+                    : (typeof data.time === 'number') ? data.time
+                    : (data.info && typeof data.info.currentTime === 'number') ? data.info.currentTime
+                    : null;
+            if (t !== null && t > 0 && isFinite(t)) {
+                _setLessonTime(libraryState.aulaAtiva.id, Math.floor(t));
+            }
+        });
+
+        // Pede o tempo atual ao iframe. Chamada antes de trocar de aula ou
+        // sair da Library — se o Drive responder, o listener acima salva.
+        function _tentarCapturarPosicao() {
+            const iframe = document.getElementById('video-iframe');
+            if (!iframe || !iframe.contentWindow) return;
+            try {
+                iframe.contentWindow.postMessage(JSON.stringify({ event: 'listening' }), '*');
+                iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'getCurrentTime' }), '*');
+            } catch (_e) { /* silencioso — sem feedback UI */ }
+        }
+
+        // ============ NOTAS POR AULA ============
+        const NOTES_PREFIX = _getPrefixo() + 'notes_';
+        let _notesSaveTimer = null;
+        let _notesIndicatorTimer = null;
+
+        function _getNotaAula(lessonId) {
+            return localStorage.getItem(NOTES_PREFIX + lessonId) || '';
+        }
+        function _setNotaAula(lessonId, texto) {
+            if (texto && texto.trim()) localStorage.setItem(NOTES_PREFIX + lessonId, texto);
+            else localStorage.removeItem(NOTES_PREFIX + lessonId);
+        }
+        function _temNotaAula(lessonId) {
+            const v = localStorage.getItem(NOTES_PREFIX + lessonId);
+            return !!(v && v.trim());
+        }
+
+        function _carregarNotasNoCampo(lessonId) {
+            const ta = document.getElementById('lesson-notes');
+            if (!ta) return;
+            // Cancela qualquer save pendente da aula anterior antes de trocar o conteúdo.
+            clearTimeout(_notesSaveTimer);
+            ta.value = _getNotaAula(lessonId);
+            ta.disabled = false;
+            const ind = document.getElementById('notes-saved-indicator');
+            if (ind) { ind.classList.add('hidden'); ind.classList.remove('flex'); }
+        }
+
+        // Debounce de 1s — grava só quando o usuário pausa de digitar.
+        function _agendarSalvarNotas() {
+            if (!libraryState.aulaAtiva) return;
+            const lessonId = libraryState.aulaAtiva.id;
+            clearTimeout(_notesSaveTimer);
+            _notesSaveTimer = setTimeout(() => {
+                const ta = document.getElementById('lesson-notes');
+                if (!ta) return;
+                _setNotaAula(lessonId, ta.value);
+                _mostrarIndicadorSalvo();
+                // Refresh da lista pra aparecer/sumir o ícone de nota na linha da aula.
+                renderPlayerUI();
+            }, 1000);
+        }
+
+        function _mostrarIndicadorSalvo() {
+            const ind = document.getElementById('notes-saved-indicator');
+            if (!ind) return;
+            ind.classList.remove('hidden');
+            ind.classList.add('flex');
+            clearTimeout(_notesIndicatorTimer);
+            _notesIndicatorTimer = setTimeout(() => {
+                ind.classList.add('hidden');
+                ind.classList.remove('flex');
+            }, 2000);
+        }
+
+        function _mostrarModalConfirmacao(mensagem, onSim, onNao) {
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('confirm-modal-msg').innerText = mensagem;
+            modal.classList.remove('hidden');
+            const btnSim = document.getElementById('confirm-modal-yes');
+            const btnNao = document.getElementById('confirm-modal-no');
+            const fechar = () => {
+                modal.classList.add('hidden');
+                btnSim.onclick = null;
+                btnNao.onclick = null;
+            };
+            btnSim.onclick = () => { fechar(); onSim && onSim(); };
+            btnNao.onclick = () => { fechar(); onNao && onNao(); };
+        }
+
+        function _persistirProgresso(data) {
+            localStorage.setItem(DB_KEY, JSON.stringify(data));
+            if (currentCourseId) renderPlayerUI();
+        }
+
+        function toggleLessonWatched(lessonId) {
+            const data = getProgress();
+            const novoEstado = !data[lessonId];
+
+            // Só pergunta ao MARCAR (não ao desmarcar) e quando há anteriores não marcadas.
+            if (novoEstado && currentCourseLessons && currentCourseLessons.length) {
+                const idx = currentCourseLessons.findIndex(a => a.id === lessonId);
+                if (idx > 0) {
+                    const anterioresNaoMarcadas = currentCourseLessons
+                        .slice(0, idx)
+                        .filter(a => !data[a.id]);
+                    if (anterioresNaoMarcadas.length > 0) {
+                        _mostrarModalConfirmacao(
+                            `Marcar as ${anterioresNaoMarcadas.length} aulas anteriores como assistidas também?`,
+                            () => {
+                                anterioresNaoMarcadas.forEach(a => { data[a.id] = true; });
+                                data[lessonId] = true;
+                                _persistirProgresso(data);
+                            },
+                            () => {
+                                data[lessonId] = true;
+                                _persistirProgresso(data);
+                            }
+                        );
+                        return;
+                    }
+                }
+            }
+
+            data[lessonId] = novoEstado;
+            _persistirProgresso(data);
+        }
+
+        // Skeleton para a Library — mesmos contornos dos cards reais.
+        function renderLibrarySkeleton(qtd = 6) {
+            const grid = document.getElementById('course-grid');
+            let html = '';
+            for (let i = 0; i < qtd; i++) {
+                html += `
+                    <div class="bg-surface-container-low rounded-xl p-4 flex flex-col h-full border border-outline-variant/10">
+                        <div class="w-full aspect-video rounded-lg overflow-hidden mb-6 skeleton"></div>
+                        <div class="flex-1 flex flex-col px-2 pb-2 gap-3">
+                            <div class="h-3 w-24 skeleton"></div>
+                            <div class="h-5 w-3/4 skeleton"></div>
+                            <div class="h-4 w-1/2 skeleton mt-auto"></div>
+                        </div>
+                    </div>`;
+            }
+            grid.innerHTML = html;
+        }
+
+        // Library rodando de forma independente do Download Center: usa lock reentrante
+        // para não duplicar chamadas se o usuário clicar refresh em rajada.
+        // (declaração de _libraryCarregando movida para o topo do script)
+
+        async function renderLibrary(forcarRefresh = false) {
+            const grid = document.getElementById('course-grid');
+
+            // ID do Drive: prioriza input; senão usa memória
+            let rootId = document.getElementById('input-drive').value || localStorage.getItem('rootDriveRootId');
+
+            if(!rootId) {
+                grid.innerHTML = '<div class="col-span-full p-8 bg-surface-container-low rounded-xl text-center border border-outline-variant/20"><p class="text-on-surface-variant mb-4">Para visualizar sua Library, cole o ID da Pasta Principal do seu Drive na aba "Download Center" primeiro.</p><button onclick="showView(\'download\')" class="px-6 py-2 bg-primary text-[#001a42] font-bold rounded-full text-sm">Ir para Download</button></div>';
+                return;
+            }
+
+            if (_libraryCarregando) return;
+            _libraryCarregando = true;
+
+            localStorage.setItem('rootDriveRootId', rootId);
+            renderLibrarySkeleton();
+
+            const btn = document.getElementById('btn-refresh-library');
+            if (btn) { btn.disabled = true; btn.classList.add('opacity-60'); }
+
+            // Timeout no frontend como rede de segurança. Backend também tem timeout de 15s.
+            const promessaDrive = eel.carregar_cursos_drive(rootId)();
+            const promessaTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000));
+
+            let resposta;
+            try {
+                resposta = await Promise.race([promessaDrive, promessaTimeout]);
+            } catch (e) {
+                resposta = { erro: 'timeout', mensagem: 'A consulta ao Google Drive demorou demais (>15s).' };
+            } finally {
+                _libraryCarregando = false;
+                if (btn) { btn.disabled = false; btn.classList.remove('opacity-60'); }
+            }
+
+            if(resposta && resposta.erro) {
+                const msg = resposta.erro === 'timeout'
+                    ? (resposta.mensagem || 'A consulta ao Google Drive demorou demais.')
+                    : `Erro ao ler o Drive: ${resposta.erro}`;
+                grid.innerHTML = `
+                    <div class="col-span-full p-8 bg-surface-container-low rounded-xl text-center border border-outline-variant/20 flex flex-col items-center gap-4">
+                        <span class="material-symbols-outlined text-4xl text-error">cloud_off</span>
+                        <p class="text-on-surface-variant">${msg}</p>
+                        <button onclick="renderLibrary(true)" class="px-6 py-2 bg-primary text-[#001a42] font-bold rounded-full text-sm flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[18px]">refresh</span>
+                            Tentar Novamente
+                        </button>
+                    </div>`;
+                return;
+            }
+
+            grid.innerHTML = '';
+            const cursos = (resposta && resposta.cursos) || [];
+
+            if(cursos.length === 0) {
+                 grid.innerHTML = '<div class="col-span-full text-on-surface-variant">Nenhuma pasta (curso) encontrada dentro do ID fornecido.</div>';
+                 return;
+            }
+
+            const progressData = getProgress();
+            const lessonsMap = getLessonsMap();
+
+            cursos.forEach(course => {
+                // Fonte do total: backend (contagem real no Drive) é a verdade.
+                // Fonte do watched: interseção com as aulas já vistas (lessonsMap).
+                // Cursos nunca abertos não têm lessonsMap — ficam em "Não iniciado".
+                const mapped = lessonsMap[course.id] || [];
+                const total = course.total_lessons || mapped.length;
+                const watched = mapped.filter(id => progressData[id]).length;
+                const percent = total > 0 ? Math.min(100, (watched / total) * 100) : 0;
+
+                let statusHtml;
+                if (watched === 0) {
+                    statusHtml = `<p class="card-progresso-status text-xs font-label uppercase tracking-widest text-on-surface-variant/60">Não iniciado</p>`;
+                } else if (percent >= 100) {
+                    statusHtml = `<p class="card-progresso-status text-xs font-label uppercase tracking-widest text-tertiary flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>Concluído</p>`;
+                } else {
+                    statusHtml = `<p class="card-progresso-status text-xs font-label uppercase tracking-widest text-on-surface-variant">${watched}/${total} aulas assistidas</p>`;
+                }
+
+                grid.innerHTML += `
+                    <article data-course-id="${course.id}" data-total-lessons="${total}" data-course-title="${course.title.replace(/"/g, '&quot;')}" onclick="openCourse('${course.id}', '${course.title.replace(/'/g, "\\'")}')" class="group bg-surface-container-low rounded-xl p-4 cursor-pointer hover:bg-surface-container-highest transition-all duration-500 flex flex-col h-full hover:-translate-y-1 shadow-[0px_10px_20px_rgba(0,0,0,0.2)] border border-outline-variant/10">
+                        <div class="w-full aspect-video rounded-lg overflow-hidden relative mb-6">
+                            <img src="${course.image}" class="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-all duration-700">
+                        </div>
+                        <div class="flex-1 flex flex-col px-2 pb-2">
+                            <span class="font-label text-[0.65rem] uppercase tracking-[0.1em] text-primary mb-2 font-semibold">${course.tag}</span>
+                            <h3 class="font-headline text-xl font-bold text-on-surface mb-2 leading-tight group-hover:text-primary transition-colors">${course.title}</h3>
+                            <p class="font-body text-sm text-on-surface-variant">${course.total_lessons} arquivos disponíveis</p>
+                            <div class="mt-auto pt-4 flex flex-col gap-2">
+                                ${statusHtml}
+                                <div class="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+                                    <div class="card-progresso-bar h-full bg-gradient-to-r from-primary to-primary-container rounded-full transition-all duration-500" style="width: ${percent}%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>`;
+            });
+
+            // Sinaliza que a grade já foi populada — próximas visitas reaproveitam o DOM.
+            libraryState.gridLoaded = true;
+
+            // Se o usuário já tinha digitado um termo antes do refresh, re-aplica o filtro.
+            const searchBox = document.getElementById('search-courses');
+            if (searchBox && searchBox.value) filtrarCursos();
+
+            // M1: busca fotos dos canais do Telegram em background — não bloqueia a grade.
+            // Usa a imagem fallback até a resposta chegar; trocamos uma a uma por data-course-title.
+            carregarFotosCanais(cursos.map(c => c.title));
+        }
+
+        // M1: baixa fotos de perfil dos canais do Telegram e troca o <img> de cada card.
+        // Chamada é fire-and-forget: se der timeout ou erro, mantemos o fallback visual.
+        async function carregarFotosCanais(titulos) {
+            if (!titulos || titulos.length === 0) return;
+            try {
+                const mapa = await eel.obter_fotos_canais(titulos)();
+                if (!mapa) return;
+                // Iteração por atributo — robusto a títulos com aspas/especiais que
+                // quebrariam um querySelector interpolado.
+                document.querySelectorAll('[data-course-title]').forEach(article => {
+                    const titulo = article.getAttribute('data-course-title');
+                    if (mapa[titulo]) {
+                        const img = article.querySelector('img');
+                        if (img) img.src = mapa[titulo];
+                    }
+                });
+            } catch (e) {
+                // Silencioso — fallback visual já está aplicado.
+            }
+        }
+
+        function filtrarCursos() {
+            const input = document.getElementById('search-courses');
+            if (!input) return;
+            const termo = input.value.trim().toLowerCase();
+            const grid = document.getElementById('course-grid');
+            const empty = document.getElementById('course-grid-empty');
+            let visiveis = 0;
+            grid.querySelectorAll('[data-course-id]').forEach(card => {
+                const titulo = (card.getAttribute('data-course-title') || '').toLowerCase();
+                const match = !termo || titulo.includes(termo);
+                card.style.display = match ? '' : 'none';
+                if (match) visiveis++;
+            });
+            if (empty) empty.classList.toggle('hidden', visiveis > 0);
+        }
+
+        // Atualiza apenas a seção de progresso de cada card sem refazer a consulta ao Drive.
+        // Usado ao voltar do player pra grade — reflete marcações novas imediatamente.
+        function _atualizarProgressoCards() {
+            const progressData = getProgress();
+            const lessonsMap = getLessonsMap();
+            document.querySelectorAll('[data-course-id]').forEach(card => {
+                const courseId = card.getAttribute('data-course-id');
+                const total = parseInt(card.getAttribute('data-total-lessons')) || 0;
+                const mapped = lessonsMap[courseId] || [];
+                const watched = mapped.filter(id => progressData[id]).length;
+                const percent = total > 0 ? Math.min(100, (watched / total) * 100) : 0;
+
+                const statusEl = card.querySelector('.card-progresso-status');
+                const barEl = card.querySelector('.card-progresso-bar');
+                if (barEl) barEl.style.width = `${percent}%`;
+                if (statusEl) {
+                    if (watched === 0) {
+                        statusEl.className = 'card-progresso-status text-xs font-label uppercase tracking-widest text-on-surface-variant/60';
+                        statusEl.innerHTML = 'Não iniciado';
+                    } else if (percent >= 100) {
+                        statusEl.className = 'card-progresso-status text-xs font-label uppercase tracking-widest text-tertiary flex items-center gap-1.5';
+                        statusEl.innerHTML = '<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: \'FILL\' 1;">check_circle</span>Concluído';
+                    } else {
+                        statusEl.className = 'card-progresso-status text-xs font-label uppercase tracking-widest text-on-surface-variant';
+                        statusEl.innerHTML = `${watched}/${total} aulas assistidas`;
+                    }
+                }
+            });
+        }
+
+        async function openCourse(courseId, courseTitle) {
+            // Se o usuário clicou no mesmo curso que já estava aberto, apenas mostra
+            // o player — não recarrega aulas nem zera o vídeo.
+            if (libraryState.cursoAtivo && libraryState.cursoAtivo.id === courseId && currentCourseLessons && currentCourseLessons.length) {
+                showView('player');
+                return;
+            }
+
+            // Curso diferente: atualizamos o estado e carregamos aulas do zero.
+            libraryState.cursoAtivo = { id: courseId, nome: courseTitle };
+            libraryState.aulaAtiva = null;
+            libraryState.scrollLessonList = 0;
+            libraryState.scrollPlayer = 0;
+
+            showView('player');
+            currentCourseId = courseId;
+            document.getElementById('course-title-header').innerText = courseTitle;
+
+            // Limpa o filtro de busca ao trocar de curso pra não herdar termo de outro curso.
+            const search = document.getElementById('search-lessons');
+            if (search) search.value = '';
+            const emptyBox = document.getElementById('lesson-list-empty');
+            if (emptyBox) emptyBox.classList.add('hidden');
+
+            // Campo de notas volta ao estado inicial enquanto nenhuma aula estiver selecionada.
+            const notesTa = document.getElementById('lesson-notes');
+            if (notesTa) { notesTa.value = ''; notesTa.disabled = true; }
+            const notesInd = document.getElementById('notes-saved-indicator');
+            if (notesInd) { notesInd.classList.add('hidden'); notesInd.classList.remove('flex'); }
+
+            const listContainer = document.getElementById('lesson-list');
+            // Skeleton da lista de aulas — mantém o visual da coluna sem tela em branco.
+            let sk = '';
+            for (let i = 0; i < 6; i++) {
+                sk += `
+                    <div class="flex items-center gap-4 p-4 rounded-xl">
+                        <div class="w-8 h-5 skeleton"></div>
+                        <div class="flex-1 flex flex-col gap-2">
+                            <div class="h-4 w-3/4 skeleton"></div>
+                            <div class="h-3 w-1/4 skeleton"></div>
+                        </div>
+                        <div class="w-6 h-6 rounded-full skeleton"></div>
+                    </div>`;
+            }
+            listContainer.innerHTML = sk;
+
+            document.getElementById('video-iframe').classList.add('hidden');
+            document.getElementById('video-iframe').src = "";
+            document.getElementById('player-placeholder').classList.remove('hidden');
+            document.getElementById('player-fallback').classList.add('hidden');
+            document.getElementById('player-warn').classList.add('hidden');
+            document.getElementById('video-title').innerText = "Selecione uma aula na lista...";
+
+            const promessaDrive = eel.carregar_aulas_curso(courseId)();
+            const promessaTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000));
+
+            let resposta;
+            try {
+                resposta = await Promise.race([promessaDrive, promessaTimeout]);
+            } catch (e) {
+                resposta = { erro: 'timeout', mensagem: 'Leitura do curso excedeu 15s.' };
+            }
+
+            if(resposta.erro) {
+                const msg = resposta.erro === 'timeout' ? (resposta.mensagem || 'Leitura demorou demais.') : resposta.erro;
+                listContainer.innerHTML = `
+                    <div class="p-4 flex flex-col items-center gap-3 text-center">
+                        <span class="material-symbols-outlined text-3xl text-error">cloud_off</span>
+                        <div class="text-error text-sm">${msg}</div>
+                        <button onclick="openCourse('${courseId}', '${courseTitle.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-primary text-[#001a42] font-bold rounded-full text-xs flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">refresh</span>
+                            Tentar Novamente
+                        </button>
+                    </div>`;
+                return;
+            }
+
+            currentCourseLessons = resposta.aulas;
+            saveLessonsMap(courseId, currentCourseLessons);
+            renderPlayerUI();
+
+            // Retoma automaticamente a última aula aberta neste curso (se houver).
+            const last = getLastLesson(courseId);
+            if (last && currentCourseLessons.find(a => a.id === last.lessonId)) {
+                _mostrarRetomando(`Retomando: ${last.lessonTitle}`);
+                playLesson(last.lessonId, last.lessonTitle);
+                // Scroll da lista lateral até a aula ativa — rAF pra esperar o DOM re-renderizar.
+                requestAnimationFrame(() => {
+                    const alvo = document.querySelector(`[data-lesson-id="${last.lessonId}"]`);
+                    if (alvo) alvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+            }
+        }
+
+        let currentLessonId = null;
+
+        function renderPlayerUI() {
+            const listContainer = document.getElementById('lesson-list');
+            listContainer.innerHTML = '';
+            const progressData = getProgress();
+            let watchedCount = 0;
+
+            currentCourseLessons.forEach((lesson, index) => {
+                const isWatched = progressData[lesson.id] || false;
+                if(isWatched) watchedCount++;
+
+                const checkIcon = isWatched ? 'check_circle' : 'radio_button_unchecked';
+                const checkColor = isWatched ? 'text-tertiary' : 'text-on-surface-variant/50';
+                const opacity = isWatched ? 'opacity-60' : 'opacity-100';
+                const activeStyle = currentLessonId === lesson.id ? 'bg-surface-container-highest border border-primary/30' : 'hover:bg-surface-container';
+                const noteIcon = _temNotaAula(lesson.id)
+                    ? `<span title="Esta aula tem anotações" class="material-symbols-outlined text-[16px] text-primary/80 flex-shrink-0">edit_note</span>`
+                    : '';
+
+                listContainer.innerHTML += `
+                    <div class="lesson-row group flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${activeStyle} ${opacity}" data-lesson-id="${lesson.id}" data-lesson-title="${lesson.title.replace(/"/g, '&quot;')}">
+                        <div class="flex-shrink-0 w-8 flex justify-center" onclick="playLesson('${lesson.id}', '${lesson.title.replace(/'/g, "\\'")}')">
+                            <span class="font-label text-sm text-on-surface-variant font-bold">${index + 1}</span>
+                        </div>
+                        <div class="flex-1 flex flex-col min-w-0" onclick="playLesson('${lesson.id}', '${lesson.title.replace(/'/g, "\\'")}')">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-sm font-medium ${isWatched ? 'text-on-surface-variant' : 'text-on-surface'} transition-colors truncate">${lesson.title}</span>
+                                ${noteIcon}
+                            </div>
+                            <span class="text-xs text-on-surface-variant/60 mt-0.5">${lesson.type.toUpperCase()}</span>
+                        </div>
+                        <div class="flex-shrink-0 p-2 rounded-full hover:bg-surface-container-high transition-colors" onclick="toggleLessonWatched('${lesson.id}')">
+                            <span class="material-symbols-outlined ${checkColor} text-[24px]" style="${isWatched ? "font-variation-settings: 'FILL' 1;" : ""}">${checkIcon}</span>
+                        </div>
+                    </div>`;
+            });
+
+            const total = currentCourseLessons.length;
+            const percent = total > 0 ? (watchedCount / total) * 100 : 0;
+            document.getElementById('progress-text').innerText = `${watchedCount}/${total} Aulas Assistidas`;
+            document.getElementById('progress-percent').innerText = `${Math.round(percent)}% Concluído`;
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+
+            // Re-aplica o filtro atual pra não perdê-lo ao re-renderizar (ex: após marcar uma aula).
+            const search = document.getElementById('search-lessons');
+            if (search && search.value) filtrarAulas();
+        }
+
+        function filtrarAulas() {
+            const input = document.getElementById('search-lessons');
+            if (!input) return;
+            const termo = input.value.trim().toLowerCase();
+            const list = document.getElementById('lesson-list');
+            const empty = document.getElementById('lesson-list-empty');
+            let visiveis = 0;
+            list.querySelectorAll('.lesson-row').forEach(el => {
+                const titulo = (el.getAttribute('data-lesson-title') || '').toLowerCase();
+                const match = !termo || titulo.includes(termo);
+                el.style.display = match ? '' : 'none';
+                if (match) visiveis++;
+            });
+            if (empty) empty.classList.toggle('hidden', visiveis > 0);
+        }
+
+        // Estado do player usado para fallback em cascata
+        let _playerTentativaTimer = null;
+        let _playerInfo = null;
+
+        function _mostrarPlayerFallback(mensagem) {
+            const placeholder = document.getElementById('player-placeholder');
+            const iframe = document.getElementById('video-iframe');
+            const fallback = document.getElementById('player-fallback');
+            const fallbackMsg = document.getElementById('player-fallback-msg');
+            const fallbackLink = document.getElementById('player-fallback-link');
+
+            placeholder.classList.add('hidden');
+            iframe.classList.add('hidden');
+            iframe.src = "";
+            fallback.classList.remove('hidden');
+            fallbackMsg.innerText = mensagem || 'Tente abri-lo direto no Google Drive.';
+            fallbackLink.href = (_playerInfo && _playerInfo.drive_url) || '#';
+        }
+
+        function playHLS(fileId, driveUrl) {
+            const video = document.getElementById('video-player');
+            const iframe = document.getElementById('video-iframe');
+
+            if (!Hls.isSupported()) {
+                // Fallback para iframe se HLS não suportado
+                iframe.src = driveUrl;
+                iframe.classList.remove('hidden');
+                video.classList.add('hidden');
+                return;
+            }
+
+            // Para qualquer stream anterior
+            if (window._hlsInstance) {
+                fetch(`http://localhost:8765/stop/${window._hlsFileId}`)
+                    .catch(() => {});
+                window._hlsInstance.destroy();
+                window._hlsInstance = null;
+            }
+
+            window._hlsFileId = fileId;
+            const src = `http://localhost:8765/stream/${fileId}/playlist.m3u8`
+                + `?url=${encodeURIComponent(driveUrl)}`;
+
+            const hls = new Hls({ maxBufferLength: 60 });
+            hls.loadSource(src);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                video.play();
+                // Restaurar posição salva
+                const prefixo = typeof _getPrefixo === 'function' ? _getPrefixo() : '';
+                const t = localStorage.getItem(prefixo + 'lessonTime_' + fileId);
+                if (t) video.currentTime = parseInt(t);
+            });
+            hls.on(Hls.Events.ERROR, (event, data) => {
+                if (data.fatal) {
+                    // Fallback para iframe
+                    video.classList.add('hidden');
+                    iframe.classList.remove('hidden');
+                    iframe.src = driveUrl;
+                }
+            });
+
+            // Salvar posição a cada 5s
+            video.ontimeupdate = () => {
+                const prefixo = typeof _getPrefixo === 'function' ? _getPrefixo() : '';
+                localStorage.setItem(
+                    prefixo + 'lessonTime_' + fileId,
+                    Math.floor(video.currentTime)
+                );
+            };
+
+            video.classList.remove('hidden');
+            iframe.classList.add('hidden');
+            window._hlsInstance = hls;
+        }
+
+        function _tentarMetodoEmbed(url, tentativaAtual) {
+            const iframe = document.getElementById('video-iframe');
+            const placeholder = document.getElementById('player-placeholder');
+            const fallback = document.getElementById('player-fallback');
+
+            placeholder.classList.add('hidden');
+            fallback.classList.add('hidden');
+            iframe.classList.remove('hidden');
+            iframe.src = url;
+
+            // Detecção de falha: iframes cross-origin não disparam onerror confiável.
+            // Damos 20s para o Drive carregar (vídeos grandes precisam processar thumb/stream);
+            // se onload não chegou, avançamos para fallback.
+            let carregou = false;
+            iframe.onload = () => { carregou = true; };
+
+            clearTimeout(_playerTentativaTimer);
+            _playerTentativaTimer = setTimeout(() => {
+                if (carregou) return;
+                if (tentativaAtual === 1 && _playerInfo) {
+                    // Método 1 (preview) falhou — tenta método 2 (uc?export=download)
+                    _tentarMetodoEmbed(_playerInfo.download_url, 2);
+                } else {
+                    _mostrarPlayerFallback('Nenhum método de reprodução funcionou. Abra o arquivo diretamente no Google Drive.');
+                }
+            }, 20000);
+        }
+
+        async function playLesson(lessonId, title) {
+            // Se a mesma aula já está carregada, NÃO recarregamos o iframe.
+            // Isso preserva o estado de playback do navegador (pausa, posição)
+            // ao voltar pra Library depois de navegar por outras abas.
+            if (libraryState.aulaAtiva && libraryState.aulaAtiva.id === lessonId) {
+                renderPlayerUI();
+                return;
+            }
+
+            // P2 — antes de trocar de aula, tenta capturar a posição da atual.
+            // Se o Drive responder em tempo hábil, o listener global salva.
+            _tentarCapturarPosicao();
+
+            libraryState.aulaAtiva = { id: lessonId, title: title, tempoAtual: 0 };
+            currentLessonId = lessonId;
+            if (currentCourseId) saveLastLesson(currentCourseId, lessonId, title);
+            document.getElementById('video-title').innerText = title;
+            document.getElementById('player-warn').classList.add('hidden');
+            _carregarNotasNoCampo(lessonId);
+            clearTimeout(_playerTentativaTimer);
+
+            // Mostra placeholder enquanto consulta o backend
+            document.getElementById('player-placeholder').classList.remove('hidden');
+            document.getElementById('player-fallback').classList.add('hidden');
+            document.getElementById('video-iframe').classList.add('hidden');
+            document.getElementById('video-iframe').src = "";
+
+            let info;
+            try {
+                info = await eel.obter_link_aula(lessonId)();
+            } catch (e) {
+                info = null;
+            }
+
+            if (!info || info.erro) {
+                _playerInfo = { drive_url: `https://drive.google.com/file/d/${lessonId}/view` };
+                _mostrarPlayerFallback('Não consegui resolver o link desta aula.');
+                renderPlayerUI();
+                return;
+            }
+
+            _playerInfo = info;
+
+            // Aviso de permissão — is_public pode ser null (checagem falhou): só mostramos se for false explícito.
+            if (info.is_public === false) {
+                document.getElementById('player-warn').classList.remove('hidden');
+            }
+
+            // P2 — se houver posição salva (pelo auto-save via postMessage),
+            // anexa ?t=SEG à URL do preview. O Drive respeita esse parâmetro
+            // e inicia a reprodução no tempo certo.
+            const salvaPos = _getLessonTime(lessonId);
+            let urlInicial = info.preview_url;
+            if (salvaPos && salvaPos.time > 0) {
+                urlInicial += (urlInicial.includes('?') ? '&' : '?') + 't=' + salvaPos.time;
+                _mostrarRetomando(`Retomando de ${_formatTime(salvaPos.time)}`);
+            }
+
+            // Cascata: 1) preview → 2) uc?export=download → 3) fallback "Abrir no Google Drive"
+            // Tenta HLS primeiro se servidor local estiver disponível
+            fetch('http://localhost:8765/stream/' + lessonId + '/playlist.m3u8?url='
+                + encodeURIComponent(info.preview_url), {method: 'HEAD'})
+            .then(() => {
+                playHLS(lessonId, info.preview_url);
+            })
+            .catch(() => {
+                _tentarMetodoEmbed(urlInicial, 1);
+            });
+            return; // evita chamar _tentarMetodoEmbed duas vezes
+            _tentarMetodoEmbed(urlInicial, 1);
+            renderPlayerUI();
+        }
+
+        // =========================================================
+        // PERFIS
+        // =========================================================
+        const PERFIS_KEY = 'listaPerfis';
+
+        function _getPerfis() {
+            try {
+                const arr = JSON.parse(localStorage.getItem(PERFIS_KEY) || '[]');
+                if (!arr.length) return ['default'];
+                return arr;
+            } catch (e) { return ['default']; }
+        }
+
+        function _setPerfis(perfis) {
+            localStorage.setItem(PERFIS_KEY, JSON.stringify(perfis));
+        }
+
+        function _getPerfilAtivo() {
+            return localStorage.getItem('perfilAtivo') || 'default';
+        }
+
+        function _atualizarNomePerfilAtivo() {
+            const el = document.getElementById('perfil-nome-ativo');
+            if (el) el.innerText = _getPerfilAtivo();
+        }
+
+        function _renderizarListaPerfis() {
+            const ul = document.getElementById('lista-perfis');
+            if (!ul) return;
+            const perfis = _getPerfis();
+            const ativo = _getPerfilAtivo();
+            ul.innerHTML = perfis.map(p => {
+                const pEsc = p.replace(/'/g, "\\'");
+                const isAtivo = p === ativo;
+                const podeDeletar = perfis.length > 1 && p !== 'default';
+                const btnDel = podeDeletar
+                    ? `<button onclick="deletarPerfil('${pEsc}')" class="text-on-surface-variant hover:text-error transition-colors p-1"><span class="material-symbols-outlined text-[18px]">delete</span></button>`
+                    : '';
+                const highlight = isAtivo
+                    ? 'bg-primary/10 border-primary/40 text-primary'
+                    : 'bg-surface-container-highest border-outline-variant/20 text-on-surface hover:brightness-110';
+                return `<li class="flex items-center gap-2 border rounded-lg px-4 py-2.5 ${highlight} transition-all">
+                    <span onclick="selecionarPerfil('${pEsc}')" class="flex-1 cursor-pointer text-sm font-medium">${p}${isAtivo ? ' (ativo)' : ''}</span>
+                    ${btnDel}
+                </li>`;
+            }).join('');
+        }
+
+        function abrirModalPerfis() {
+            _renderizarListaPerfis();
+            const input = document.getElementById('input-novo-perfil');
+            if (input) input.value = '';
+            document.getElementById('modal-perfis').classList.remove('hidden');
+        }
+
+        function fecharModalPerfis() {
+            document.getElementById('modal-perfis').classList.add('hidden');
+        }
+
+        function criarPerfil() {
+            const input = document.getElementById('input-novo-perfil');
+            if (!input) return;
+            const nome = input.value.trim();
+            if (!nome) { alert('Digite um nome para o perfil.'); return; }
+            const perfis = _getPerfis();
+            if (perfis.includes(nome)) { alert('Já existe um perfil com esse nome.'); return; }
+            perfis.push(nome);
+            _setPerfis(perfis);
+            input.value = '';
+            _renderizarListaPerfis();
+        }
+
+        function selecionarPerfil(nome) {
+            if (!nome) return;
+            localStorage.setItem('perfilAtivo', nome);
+            _atualizarNomePerfilAtivo();
+            fecharModalPerfis();
+            location.reload();
+        }
+
+        function deletarPerfil(nome) {
+            if (!nome || nome === 'default') return;
+            const perfis = _getPerfis().filter(p => p !== nome);
+            if (!perfis.length) perfis.push('default');
+            _setPerfis(perfis);
+            if (_getPerfilAtivo() === nome) {
+                localStorage.setItem('perfilAtivo', perfis[0]);
+                _atualizarNomePerfilAtivo();
+                location.reload();
+                return;
+            }
+            _renderizarListaPerfis();
+        }
+
+        // =========================================================
+        // AGENDAMENTO DE TRANSFERÊNCIAS
+        // =========================================================
+        const AGENDAMENTOS_KEY = 'agendamentosTransferencia';
+
+        function _getAgendamentos() {
+            try { return JSON.parse(localStorage.getItem(AGENDAMENTOS_KEY) || '[]'); }
+            catch (e) { return []; }
+        }
+
+        function _setAgendamentos(lista) {
+            localStorage.setItem(AGENDAMENTOS_KEY, JSON.stringify(lista));
+        }
+
+        function _renderizarAgendamentos() {
+            const wrap = document.getElementById('lista-agendamentos-wrap');
+            const ul = document.getElementById('lista-agendamentos');
+            if (!wrap || !ul) return;
+            const lista = _getAgendamentos().filter(a => !a.disparado);
+            if (lista.length === 0) {
+                wrap.classList.add('hidden');
+                wrap.classList.remove('flex');
+                return;
+            }
+            wrap.classList.remove('hidden');
+            wrap.classList.add('flex');
+            ul.innerHTML = lista.map(a => {
+                const dt = new Date(a.quando).toLocaleString();
+                return `<li class="flex items-center gap-2 bg-surface-container-highest border border-outline-variant/20 rounded-lg px-3 py-2 text-xs">
+                    <span class="flex-1 text-on-surface truncate">${dt} — ${a.canal} (${(a.ids || []).length} arq.)</span>
+                    <button onclick="_deletarAgendamento('${a.id}')" class="text-on-surface-variant hover:text-error transition-colors p-1"><span class="material-symbols-outlined text-[16px]">delete</span></button>
+                </li>`;
+            }).join('');
+        }
+
+        function abrirModalAgendar() {
+            const modal = document.getElementById('modal-agendar');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+
+        function fecharModalAgendar() {
+            const modal = document.getElementById('modal-agendar');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+
+        function _salvarAgendamento() {
+            const dtInput = document.getElementById('input-agendar-datahora');
+            if (!dtInput || !dtInput.value) { alert('Defina a data e hora.'); return; }
+            const quando = new Date(dtInput.value).getTime();
+            if (!isFinite(quando) || quando <= Date.now()) { alert('Escolha uma data/hora futura.'); return; }
+
+            const canal = document.getElementById('input-canal').value.trim();
+            const pasta = document.getElementById('input-drive').value.trim() || localStorage.getItem('rootDriveRootId') || '';
+            if (!canal || !pasta) { alert('Preencha o canal e a pasta do Drive antes de agendar.'); return; }
+
+            const ids = Array.from(document.querySelectorAll('.dl-check:checked:not([disabled])')).map(cb => cb.value);
+            if (ids.length === 0) { alert('Selecione pelo menos um arquivo antes de agendar.'); return; }
+
+            const ordens = {};
+            (_aulasEncontradas || []).forEach(a => { ordens[String(a.id)] = a.ordem; });
+
+            const lista = _getAgendamentos();
+            lista.push({
+                id: 'ag_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                quando, canal, pasta, ids, ordens, disparado: false
+            });
+            _setAgendamentos(lista);
+            addLog(`📅 Agendado para ${new Date(quando).toLocaleString()} — ${ids.length} arquivo(s).`);
+            _renderizarAgendamentos();
+            fecharModalAgendar();
+        }
+
+        function _deletarAgendamento(id) {
+            const lista = _getAgendamentos().filter(a => a.id !== id);
+            _setAgendamentos(lista);
+            _renderizarAgendamentos();
+        }
+
+        async function _verificarAgendamento() {
+            const lista = _getAgendamentos();
+            const agora = Date.now();
+            let mudou = false;
+            for (const ag of lista) {
+                if (ag.disparado) continue;
+                if (ag.quando > agora) continue;
+                ag.disparado = true;
+                mudou = true;
+                try {
+                    addLog(`⏰ Disparando agendamento de ${new Date(ag.quando).toLocaleString()} — canal '${ag.canal}'.`);
+                    localStorage.setItem('rootDriveRootId', ag.pasta);
+                    await eel.iniciar_transferencia_real(ag.canal, ag.pasta, ag.ids, ag.ordens || {})();
+                } catch (e) {
+                    addLog(`❌ Falha ao disparar agendamento: ${e}`);
+                }
+            }
+            if (mudou) _setAgendamentos(lista);
+        }
+
+        setInterval(_verificarAgendamento, 60000);
+
+        // Inicialização — roda ao carregar o script
+        document.getElementById('perfil-nome-ativo').innerText = localStorage.getItem('perfilAtivo') || 'default';
+        _verificarAgendamento();
+    </script>
+</body>
+</html>

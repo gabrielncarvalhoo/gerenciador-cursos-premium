@@ -143,6 +143,11 @@ def testar_ponte_python(mensagem_do_html):
     return "✅ Conexão perfeita! O Python assumiu o controle da nave."
 
 @eel.expose
+def abrir_no_browser(url):
+    import webbrowser
+    webbrowser.open(url)
+
+@eel.expose
 def buscar_aulas_real(nome_canal, id_pasta_raiz=None):
     """
     Busca mensagens de arquivo no canal do Telegram.
@@ -1155,4 +1160,14 @@ if _hls_disponivel:
 
 if __name__ == '__main__':
     print("🚀 Servidor Python rodando! Abrindo interface...")
-    eel.start('index.html', size=(1280, 850))
+    eel.start(
+        'index.html',
+        size=(1280, 850),
+        cmdline_args=[
+            '--disable-http-cache',
+            '--user-data-dir=' + os.path.join(
+                os.path.expanduser('~'),
+                'AppData', 'Local', 'GerenciadorCursos', 'ChromeProfile'
+            )
+        ]
+    )
