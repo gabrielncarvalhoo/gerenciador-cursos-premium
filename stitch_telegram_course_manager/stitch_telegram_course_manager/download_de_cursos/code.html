@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gerenciador de Cursos - Download Center</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#2a2a2a",
+                        "primary": "#adc6ff",
+                        "on-tertiary-fixed-variant": "#005321",
+                        "surface-container-lowest": "#0e0e0e",
+                        "error-container": "#93000a",
+                        "tertiary-fixed": "#6bff8f",
+                        "on-primary-fixed": "#001a42",
+                        "on-surface-variant": "#c2c6d6",
+                        "on-surface": "#e5e2e1",
+                        "primary-fixed": "#d8e2ff",
+                        "surface-dim": "#131313",
+                        "on-secondary-fixed": "#001a42",
+                        "on-background": "#e5e2e1",
+                        "secondary-container": "#304671",
+                        "background": "#131313",
+                        "surface-container-highest": "#353534",
+                        "inverse-surface": "#e5e2e1",
+                        "on-primary-fixed-variant": "#004395",
+                        "outline-variant": "#424754",
+                        "on-secondary-fixed-variant": "#304671",
+                        "inverse-on-surface": "#313030",
+                        "error": "#ffb4ab",
+                        "on-tertiary-fixed": "#002109",
+                        "on-secondary-container": "#9fb5e7",
+                        "on-secondary": "#182f59",
+                        "on-tertiary-container": "#003111",
+                        "on-primary-container": "#00285d",
+                        "outline": "#8c909f",
+                        "surface-tint": "#adc6ff",
+                        "surface-container-low": "#1c1b1b",
+                        "surface-bright": "#393939",
+                        "on-tertiary": "#003915",
+                        "tertiary-container": "#00a74b",
+                        "on-error-container": "#ffdad6",
+                        "on-error": "#690005",
+                        "secondary": "#b1c6f9",
+                        "secondary-fixed-dim": "#b1c6f9",
+                        "tertiary-fixed-dim": "#4ae176",
+                        "inverse-primary": "#005ac2",
+                        "tertiary": "#4ae176",
+                        "surface-container": "#201f1f",
+                        "secondary-fixed": "#d8e2ff",
+                        "primary-container": "#4d8eff",
+                        "surface-variant": "#353534",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-primary": "#002e6a",
+                        "surface": "#131313"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {},
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: theme('colors.surface-container-lowest');
+            color: theme('colors.on-surface');
+        }
+        .glass-panel {
+            background: rgba(53, 53, 52, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, theme('colors.primary'), theme('colors.primary-container'));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glow-effect {
+            box-shadow: 0 0 20px rgba(173, 198, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="flex bg-surface-container-lowest min-h-screen text-on-surface">
+<!-- SideNavBar -->
+<nav class="h-screen w-64 fixed left-0 top-0 bg-[#131313] bg-surface-container-low flex flex-col h-full py-8 px-4 z-50">
+<div class="mb-12 px-4">
+<h1 class="text-xl font-bold tracking-widest uppercase text-[#adc6ff] text-primary">Gerenciador</h1>
+<p class="text-xs text-on-surface-variant mt-1 tracking-widest uppercase">Premium Archive</p>
+</div>
+<ul class="flex flex-col gap-2 flex-grow">
+<li>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-[#adc6ff] font-bold border-r-2 border-[#adc6ff] bg-gradient-to-r from-[#adc6ff]/10 to-transparent bg-gradient-to-r from-primary/10 to-transparent border-primary text-primary transition-all duration-300 active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cloud_download</span>
+<span class="font-label uppercase tracking-widest text-xs">Download Center</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-[#e5e2e1]/50 hover:text-[#e5e2e1] hover:bg-[#2a2a2a] hover:bg-surface-container-high transition-all duration-300 active:scale-95 text-on-surface/50 hover:text-on-surface" href="#">
+<span class="material-symbols-outlined">library_books</span>
+<span class="font-label uppercase tracking-widest text-xs">Library</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-[#e5e2e1]/50 hover:text-[#e5e2e1] hover:bg-[#2a2a2a] hover:bg-surface-container-high transition-all duration-300 active:scale-95 text-on-surface/50 hover:text-on-surface" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label uppercase tracking-widest text-xs">Settings</span>
+</a>
+</li>
+</ul>
+<div class="mt-auto px-4">
+<button class="w-full py-3 px-4 rounded-full bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 transition-all duration-300 active:scale-95">
+                Upload Course
+            </button>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="flex-1 ml-64 flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 bg-[#131313]/80 bg-surface/80 backdrop-blur-xl flex justify-between items-center px-12 h-20">
+<div>
+<!-- Brand logo hidden as per JSON -->
+<h2 class="font-['Inter'] font-headline text-sm uppercase tracking-widest text-[#adc6ff] text-primary hidden">Gerenciador de Cursos</h2>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-[#e5e2e1] text-on-surface hover:text-[#adc6ff] hover:text-primary transition-colors cursor-pointer">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-outline-variant/30 cursor-pointer">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="close up portrait of a young man with dark hair against a neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXJXuVljx4ByXYVrNvJAXdOp1U_rXMUIP4xsuk8zI5SjJ53hRIfmmTgq_h6_2Vkh9D0mvZiequCpUoTKjBju-pJ3CGUA_ExJGgZSZ92GbJibP-CZaGseg_fwPsGZ2e4U8t9N4TDa-M_KgmERfJoYDiGuRX1mKTZjvxtmb-aLtghnce1m985PIQPdvNtm5Ig3zaOvMPfsJrlaaIkM53ctQoc678CjVu2hrdgIn9KPO9Ypkh_MM8_Ij-tTJH5FSKMNDc1OKibLIp1DM"/>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 pt-28 px-12 pb-12 overflow-y-auto">
+<div class="max-w-6xl mx-auto space-y-8">
+<!-- Header Section -->
+<div>
+<h1 class="text-4xl font-headline font-bold text-on-surface mb-2">Telegram Downloader</h1>
+<p class="text-sm font-body text-on-surface-variant max-w-2xl">Extract and manage course files directly from Telegram channels. Enter the source details below to begin.</p>
+</div>
+<!-- Input Section (Bento Style) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="md:col-span-2 bg-surface-container rounded-xl p-6 flex flex-col gap-4">
+<div>
+<label class="block text-xs font-label uppercase tracking-widest text-primary mb-2">Telegram Group/Channel Link</label>
+<input class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all" placeholder="https://t.me/joinchat/..." type="text"/>
+</div>
+<div>
+<label class="block text-xs font-label uppercase tracking-widest text-primary mb-2">Folder ID (Optional)</label>
+<input class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all" placeholder="e.g. 1A2B3C..." type="text"/>
+</div>
+</div>
+<div class="bg-surface-container rounded-xl p-6 flex flex-col justify-center items-center text-center border border-outline-variant/10">
+<span class="material-symbols-outlined text-4xl text-primary mb-4" style="font-variation-settings: 'FILL' 1;">search</span>
+<p class="text-sm text-on-surface-variant mb-6">Scan the provided channel for media files and course structures.</p>
+<button class="w-full py-3 px-6 rounded-full bg-gradient-to-r from-primary to-primary-container text-on-primary-container font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(173,198,255,0.2)]">
+                            Buscar Aulas
+                        </button>
+</div>
+</div>
+<!-- Results & Actions Area -->
+<div class="bg-surface-container rounded-xl overflow-hidden flex flex-col">
+<!-- Action Bar -->
+<div class="bg-surface-container-high px-6 py-4 flex justify-between items-center">
+<label class="flex items-center gap-3 cursor-pointer group">
+<div class="relative flex items-center justify-center w-5 h-5 rounded border border-outline-variant bg-surface-container-highest group-hover:border-primary transition-colors">
+<input checked="" class="opacity-0 absolute inset-0 cursor-pointer w-full h-full" type="checkbox"/>
+<span class="material-symbols-outlined text-primary text-sm pointer-events-none" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<span class="text-sm font-label uppercase tracking-widest text-on-surface">Select All Files</span>
+</label>
+<div class="flex gap-3">
+<button class="px-5 py-2.5 rounded-full bg-surface-container-highest text-error font-label uppercase tracking-widest text-xs font-bold hover:bg-surface-bright transition-all duration-300 flex items-center gap-2 border border-outline-variant/15">
+<span class="material-symbols-outlined text-[18px]">stop_circle</span>
+                                Parar Download
+                            </button>
+<button class="px-5 py-2.5 rounded-full bg-tertiary text-on-tertiary font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 transition-all duration-300 flex items-center gap-2 shadow-[0_0_15px_rgba(74,225,118,0.2)]">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+                                Iniciar Transferência
+                            </button>
+</div>
+</div>
+<!-- File List -->
+<div class="p-2 space-y-1 max-h-[400px] overflow-y-auto">
+<!-- Item 1 -->
+<div class="flex items-center justify-between p-4 rounded-lg bg-surface-container hover:bg-surface-container-low transition-colors group">
+<div class="flex items-center gap-4">
+<div class="relative flex items-center justify-center w-5 h-5 rounded border border-outline-variant bg-surface-container-highest group-hover:border-primary transition-colors">
+<input checked="" class="opacity-0 absolute inset-0 cursor-pointer w-full h-full" type="checkbox"/>
+<span class="material-symbols-outlined text-primary text-sm pointer-events-none" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">video_file</span>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-on-surface">Aula 01 - Introdução ao Design System.mp4</span>
+<span class="text-xs text-on-surface-variant/70">1.2 GB • Vídeo</span>
+</div>
+</div>
+<span class="text-xs font-mono text-tertiary">Ready</span>
+</div>
+<!-- Item 2 -->
+<div class="flex items-center justify-between p-4 rounded-lg bg-surface-container hover:bg-surface-container-low transition-colors group">
+<div class="flex items-center gap-4">
+<div class="relative flex items-center justify-center w-5 h-5 rounded border border-outline-variant bg-surface-container-highest group-hover:border-primary transition-colors">
+<input checked="" class="opacity-0 absolute inset-0 cursor-pointer w-full h-full" type="checkbox"/>
+<span class="material-symbols-outlined text-primary text-sm pointer-events-none" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">video_file</span>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-on-surface">Aula 02 - Tipografia e Hierarquia.mp4</span>
+<span class="text-xs text-on-surface-variant/70">850 MB • Vídeo</span>
+</div>
+</div>
+<span class="text-xs font-mono text-tertiary">Ready</span>
+</div>
+<!-- Item 3 -->
+<div class="flex items-center justify-between p-4 rounded-lg bg-surface-container hover:bg-surface-container-low transition-colors group">
+<div class="flex items-center gap-4">
+<div class="relative flex items-center justify-center w-5 h-5 rounded border border-outline-variant bg-surface-container-highest group-hover:border-primary transition-colors">
+<input checked="" class="opacity-0 absolute inset-0 cursor-pointer w-full h-full" type="checkbox"/>
+<span class="material-symbols-outlined text-primary text-sm pointer-events-none" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">description</span>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-on-surface">Material de Apoio - Modulo 1.pdf</span>
+<span class="text-xs text-on-surface-variant/70">15 MB • Documento</span>
+</div>
+</div>
+<span class="text-xs font-mono text-tertiary">Ready</span>
+</div>
+</div>
+</div>
+<!-- Log & Progress Area (Glassmorphism) -->
+<div class="glass-panel rounded-xl p-6 border border-outline-variant/15 relative overflow-hidden">
+<!-- Decorative background glow -->
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-6">
+<div class="flex justify-between items-end">
+<div class="flex flex-col gap-1">
+<h3 class="text-xs font-label uppercase tracking-widest text-primary">System Log</h3>
+<p class="text-sm font-mono text-on-surface">Buscando... 352 aulas carregadas.</p>
+</div>
+<span class="text-2xl font-headline font-bold text-primary">45%</span>
+</div>
+<!-- Progress Glass Bar -->
+<div class="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]">
+<div class="h-full bg-gradient-to-r from-primary to-primary-container w-[45%] rounded-full shadow-[0_0_10px_rgba(173,198,255,0.5)] transition-all duration-1000"></div>
+</div>
+<div class="flex justify-between items-center text-xs text-on-surface-variant/60 font-mono">
+<span>ETA: 12 mins</span>
+<span>Speed: 4.2 MB/s</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

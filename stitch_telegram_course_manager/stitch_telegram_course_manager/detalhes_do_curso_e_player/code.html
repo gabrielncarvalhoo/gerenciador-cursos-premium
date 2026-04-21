@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gerenciador de Cursos - Player</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container-high": "#2a2a2a",
+                      "primary": "#adc6ff",
+                      "on-tertiary-fixed-variant": "#005321",
+                      "surface-container-lowest": "#0e0e0e",
+                      "error-container": "#93000a",
+                      "tertiary-fixed": "#6bff8f",
+                      "on-primary-fixed": "#001a42",
+                      "on-surface-variant": "#c2c6d6",
+                      "on-surface": "#e5e2e1",
+                      "primary-fixed": "#d8e2ff",
+                      "surface-dim": "#131313",
+                      "on-secondary-fixed": "#001a42",
+                      "on-background": "#e5e2e1",
+                      "secondary-container": "#304671",
+                      "background": "#131313",
+                      "surface-container-highest": "#353534",
+                      "inverse-surface": "#e5e2e1",
+                      "on-primary-fixed-variant": "#004395",
+                      "outline-variant": "#424754",
+                      "on-secondary-fixed-variant": "#304671",
+                      "inverse-on-surface": "#313030",
+                      "error": "#ffb4ab",
+                      "on-tertiary-fixed": "#002109",
+                      "on-secondary-container": "#9fb5e7",
+                      "on-secondary": "#182f59",
+                      "on-tertiary-container": "#003111",
+                      "on-primary-container": "#00285d",
+                      "outline": "#8c909f",
+                      "surface-tint": "#adc6ff",
+                      "surface-container-low": "#1c1b1b",
+                      "surface-bright": "#393939",
+                      "on-tertiary": "#003915",
+                      "tertiary-container": "#00a74b",
+                      "on-error-container": "#ffdad6",
+                      "on-error": "#690005",
+                      "secondary": "#b1c6f9",
+                      "secondary-fixed-dim": "#b1c6f9",
+                      "tertiary-fixed-dim": "#4ae176",
+                      "inverse-primary": "#005ac2",
+                      "tertiary": "#4ae176",
+                      "surface-container": "#201f1f",
+                      "secondary-fixed": "#d8e2ff",
+                      "primary-container": "#4d8eff",
+                      "surface-variant": "#353534",
+                      "primary-fixed-dim": "#adc6ff",
+                      "on-primary": "#002e6a",
+                      "surface": "#131313"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {},
+              "fontFamily": {
+                      "headline": [
+                              "Inter"
+                      ],
+                      "body": [
+                              "Inter"
+                      ],
+                      "label": [
+                              "Inter"
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body min-h-screen flex flex-col antialiased selection:bg-primary/30 selection:text-primary-fixed">
+<!-- Task-Focused Header (Suppresses Global Nav) -->
+<header class="h-20 px-6 md:px-12 flex items-center justify-between bg-surface-container/60 backdrop-blur-2xl sticky top-0 z-50">
+<!-- Left: Back Action -->
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface transition-colors group" href="#">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center group-hover:bg-surface-bright transition-colors">
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+</div>
+<span class="font-label text-sm uppercase tracking-widest font-semibold hidden sm:block">Library</span>
+</a>
+<!-- Center: Course Anchor -->
+<div class="absolute left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none text-center">
+<span class="font-label text-[10px] text-on-surface-variant uppercase tracking-[0.2em] mb-1">Gerenciador de Cursos</span>
+<h1 class="font-headline text-lg md:text-xl font-bold tracking-tight text-on-surface">Mastering Python</h1>
+</div>
+<!-- Right: Progress Glass -->
+<div class="flex items-center gap-4">
+<div class="hidden md:flex flex-col items-end">
+<span class="font-label text-xs uppercase tracking-wider text-primary">12/30 Aulas Assistidas</span>
+<span class="text-[10px] text-on-surface-variant mt-0.5">40% Concluído</span>
+</div>
+<!-- Custom Progress Glass Component -->
+<div class="w-24 md:w-32 h-2 rounded-full bg-surface-container-highest overflow-hidden relative shadow-inner">
+<div class="absolute top-0 left-0 h-full w-[40%] bg-gradient-to-r from-primary to-primary-container rounded-full shadow-[0_0_12px_rgba(173,198,255,0.6)]"></div>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<!-- Left Column: Media Canvas & Details (Asymmetrical emphasis) -->
+<div class="lg:col-span-8 flex flex-col gap-6 lg:gap-10">
+<!-- Video Player Stage (Cinematic framing) -->
+<div class="relative w-full aspect-video bg-[#050505] rounded-xl lg:rounded-[2rem] overflow-hidden group shadow-[0px_20px_40px_rgba(0,0,0,0.6)]">
+<!-- Video Thumbnail/Frame -->
+<img alt="Video frame" class="w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity duration-700" data-alt="Close-up shot of a glowing computer screen displaying vibrant green and blue Python code strings in a dark room, cinematic lighting and shallow depth of field" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBoxyxDK88AN7xTfcOpvzAfpnHgtOIyWj0d_EsP1XU0M0dTcvPI4sVZYgerFOCXM0C9x-m9pyOcy3PReo_7PsLjJ5sKAQpT5yBpA2LPYxBwEYsIxfJkgRSSTE5jq9b-OFTXdbdTIAOt9q-3D9A5_lsbxzed7_7aXzxXlwEVOfFT_lDgyEVsDr8Rll1uMvS3vIDLrCRqS3ebXu2Pt9J-Zq_78S8k6kuENRpdVJtiyg-76cluFoDgs7QpT66izMtwQRsU4x7cZPKxULI"/>
+<!-- Player Controls Overlay (Glassmorphism) -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+<button class="w-20 h-20 rounded-full bg-surface-container/30 backdrop-blur-md flex items-center justify-center border border-outline-variant/20 hover:scale-105 hover:bg-primary/20 transition-all duration-300 pointer-events-auto">
+<span class="material-symbols-outlined text-[40px] text-primary" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+<!-- Bottom Scrubber Area -->
+<div class="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-[#000000]/90 to-transparent flex flex-col gap-3">
+<div class="w-full h-1 bg-surface-variant/50 rounded-full overflow-hidden">
+<div class="h-full w-[15%] bg-primary shadow-[0_0_8px_rgba(173,198,255,0.8)]"></div>
+</div>
+<div class="flex justify-between items-center text-xs text-on-surface-variant font-label tracking-wide">
+<span>04:12 / 28:45</span>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-[18px] cursor-pointer hover:text-on-surface">volume_up</span>
+<span class="material-symbols-outlined text-[18px] cursor-pointer hover:text-on-surface">settings</span>
+<span class="material-symbols-outlined text-[18px] cursor-pointer hover:text-on-surface">fullscreen</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Lesson Typography Hierarchy -->
+<div class="flex flex-col gap-8 px-2 lg:px-4">
+<!-- Title Block -->
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-3">
+<span class="px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-xs font-label uppercase tracking-widest border border-outline-variant/15">Módulo 2</span>
+<span class="text-sm text-primary font-medium tracking-wide">Aula 12</span>
+</div>
+<h2 class="font-headline text-3xl md:text-4xl lg:text-[42px] font-bold tracking-tight leading-tight text-on-surface">
+                        Estruturas de Dados Avançadas
+                    </h2>
+</div>
+<!-- Instructor Context (Tonal Layering) -->
+<div class="flex items-center gap-4 py-6 border-y border-outline-variant/10">
+<div class="w-14 h-14 rounded-full overflow-hidden bg-surface-container-highest ring-2 ring-surface-container-low">
+<img alt="Instructor" class="w-full h-full object-cover" data-alt="Portrait of a young professional man with short dark hair and a beard, wearing a dark grey sweater, looking confidently forward against a muted studio background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwLpR82aEbIrHrKUQ0DWKtiN3QaUZ_ZKjTL6NtCJt1PlKaGWPk_U4rJkO9Hwzflwv3hUvhXDtBdCEtsDccn-CdRqJY1LTiHf0hL2-GjyLoQHprkXupnpVFiIRkCXe1bwKaGKrf8-2NFIP4Gs0mwqJtO1BCQyrzbvAaArPj-5-Ke7LEu2si_4diioRqUC-sDthPs-yYsnAqmofN9m1LP7QNSK9StId_rtfJHnabzpoZOMzfWmCKeEc5pdVuD137uDZLfH5y-KhS1wc"/>
+</div>
+<div class="flex flex-col">
+<span class="font-label text-xs uppercase tracking-wider text-on-surface-variant mb-0.5">Instrutor</span>
+<span class="font-headline text-base font-medium text-on-surface">Dr. Alex Chen</span>
+</div>
+<button class="ml-auto px-6 py-2 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-sm font-medium transition-colors border border-outline-variant/15">
+                        Fazer Pergunta
+                    </button>
+</div>
+<!-- Editorial Description -->
+<div class="max-w-3xl">
+<p class="font-body text-base lg:text-lg text-on-surface-variant leading-relaxed opacity-90">
+                        Nesta sessão, mergulhamos profundamente nas estruturas de dados nativas do Python além das listas básicas. Exploraremos dicionários, conjuntos (sets) e tuplas, entendendo suas complexidades de tempo (Big O) e casos de uso ideais na engenharia de software do mundo real. Prepare-se para otimizar seus algoritmos de busca e armazenamento.
+                    </p>
+</div>
+<!-- Resources Area (Bento-style interaction) -->
+<div class="mt-4">
+<h3 class="font-label text-sm uppercase tracking-widest text-on-surface-variant mb-4">Materiais Complementares</h3>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<a class="flex items-center p-4 bg-surface-container-low hover:bg-surface-container rounded-xl transition-colors group" href="#">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest flex items-center justify-center mr-4 group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary">description</span>
+</div>
+<div class="flex flex-col">
+<span class="font-medium text-sm">Resumo da Aula (PDF)</span>
+<span class="text-xs text-on-surface-variant mt-1">2.4 MB</span>
+</div>
+<span class="material-symbols-outlined ml-auto text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">download</span>
+</a>
+<a class="flex items-center p-4 bg-surface-container-low hover:bg-surface-container rounded-xl transition-colors group" href="#">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest flex items-center justify-center mr-4 group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary">code</span>
+</div>
+<div class="flex flex-col">
+<span class="font-medium text-sm">Repositório GitHub</span>
+<span class="text-xs text-on-surface-variant mt-1">Código Fonte</span>
+</div>
+<span class="material-symbols-outlined ml-auto text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">open_in_new</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Navigation Sequence (The Scrollable List) -->
+<!-- Stick to top logic, bounded by viewport -->
+<aside class="lg:col-span-4 sticky top-28 h-[calc(100vh-8rem)] flex flex-col bg-surface-container-low/50 backdrop-blur-sm rounded-2xl border border-outline-variant/10 overflow-hidden shadow-[0px_10px_30px_rgba(0,0,0,0.2)]">
+<!-- List Header -->
+<div class="p-6 pb-4 bg-surface-container-low relative z-10 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]">
+<h3 class="font-headline text-xl font-bold tracking-tight">Conteúdo do Curso</h3>
+<p class="text-sm text-on-surface-variant mt-1">Módulo 2: Estruturas Fundamentais</p>
+</div>
+<!-- Scrollable Track -->
+<div class="flex-1 overflow-y-auto px-4 py-2 space-y-2 custom-scrollbar">
+<!-- Completed Lesson Item -->
+<div class="group flex items-center gap-4 p-4 rounded-xl cursor-pointer hover:bg-surface-container transition-all">
+<div class="flex-shrink-0 w-8 flex justify-center">
+<span class="font-label text-sm text-on-surface-variant group-hover:text-on-surface">10</span>
+</div>
+<div class="flex-1 flex flex-col">
+<span class="text-sm font-medium text-on-surface-variant group-hover:text-on-surface transition-colors">Listas e Compreensões</span>
+<span class="text-xs text-on-surface-variant/60 mt-0.5">18:20</span>
+</div>
+<div class="flex-shrink-0">
+<span class="material-symbols-outlined text-tertiary text-[20px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<!-- Completed Lesson Item -->
+<div class="group flex items-center gap-4 p-4 rounded-xl cursor-pointer hover:bg-surface-container transition-all">
+<div class="flex-shrink-0 w-8 flex justify-center">
+<span class="font-label text-sm text-on-surface-variant group-hover:text-on-surface">11</span>
+</div>
+<div class="flex-1 flex flex-col">
+<span class="text-sm font-medium text-on-surface-variant group-hover:text-on-surface transition-colors">Matrizes Multi-dimensionais</span>
+<span class="text-xs text-on-surface-variant/60 mt-0.5">22:15</span>
+</div>
+<div class="flex-shrink-0">
+<span class="material-symbols-outlined text-tertiary text-[20px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<!-- ACTIVE Lesson Item (Illuminated Logic applied) -->
+<div class="relative flex items-center gap-4 p-4 rounded-xl cursor-pointer bg-surface-container-highest border border-primary/20 shadow-[0_0_20px_rgba(173,198,255,0.05)] overflow-hidden">
+<!-- Subtle gradient wash for active state -->
+<div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none"></div>
+<div class="flex-shrink-0 w-8 flex justify-center relative z-10">
+<span class="font-label text-sm text-primary font-bold">12</span>
+</div>
+<div class="flex-1 flex flex-col relative z-10">
+<span class="text-sm font-semibold text-primary">Estruturas de Dados Avançadas</span>
+<span class="text-xs text-primary/70 mt-0.5">Assistindo agora (28:45)</span>
+</div>
+<div class="flex-shrink-0 relative z-10">
+<!-- Play indicator animation substitute using visual weight -->
+<div class="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center ring-1 ring-primary/50">
+<span class="material-symbols-outlined text-primary text-[14px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+</div>
+<!-- Locked/Upcoming Lesson Item -->
+<div class="group flex items-center gap-4 p-4 rounded-xl cursor-pointer hover:bg-surface-container transition-all opacity-60">
+<div class="flex-shrink-0 w-8 flex justify-center">
+<span class="font-label text-sm text-on-surface-variant">13</span>
+</div>
+<div class="flex-1 flex flex-col">
+<span class="text-sm font-medium text-on-surface-variant">Dicionários e Hash Maps</span>
+<span class="text-xs text-on-surface-variant/60 mt-0.5">31:10</span>
+</div>
+<div class="flex-shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant/50 text-[20px]">radio_button_unchecked</span>
+</div>
+</div>
+<!-- Locked/Upcoming Lesson Item -->
+<div class="group flex items-center gap-4 p-4 rounded-xl cursor-pointer hover:bg-surface-container transition-all opacity-60">
+<div class="flex-shrink-0 w-8 flex justify-center">
+<span class="font-label text-sm text-on-surface-variant">14</span>
+</div>
+<div class="flex-1 flex flex-col">
+<span class="text-sm font-medium text-on-surface-variant">Conjuntos (Sets) em Prática</span>
+<span class="text-xs text-on-surface-variant/60 mt-0.5">15:45</span>
+</div>
+<div class="flex-shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant/50 text-[20px]">radio_button_unchecked</span>
+</div>
+</div>
+<!-- Locked/Upcoming Lesson Item -->
+<div class="group flex items-center gap-4 p-4 rounded-xl cursor-pointer hover:bg-surface-container transition-all opacity-60">
+<div class="flex-shrink-0 w-8 flex justify-center">
+<span class="font-label text-sm text-on-surface-variant">15</span>
+</div>
+<div class="flex-1 flex flex-col">
+<span class="text-sm font-medium text-on-surface-variant">Projeto Prático: Otimização</span>
+<span class="text-xs text-on-surface-variant/60 mt-0.5">45:00</span>
+</div>
+<div class="flex-shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant/50 text-[20px]">radio_button_unchecked</span>
+</div>
+</div>
+</div>
+<!-- Bottom CTA -->
+<div class="p-4 bg-surface-container-low border-t border-outline-variant/10">
+<button class="w-full py-3 rounded-xl bg-gradient-to-r from-surface-container-high to-surface-container-highest hover:from-surface-bright hover:to-surface-container-high text-on-surface font-medium text-sm transition-all duration-300 shadow-md">
+                    Baixar Módulo Inteiro
+                 </button>
+</div>
+</aside>
+</main>
+<style>
+        /* Custom styling for scrollbar in the dark theme to keep it sleek */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #2a2a2a;
+            border-radius: 10px;
+        }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+            background-color: #424754;
+        }
+    </style>
+</body></html>

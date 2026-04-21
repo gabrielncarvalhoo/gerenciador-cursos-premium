@@ -1,0 +1,1145 @@
+import eel
+import asyncio
+import os
+import time
+import re
+import io
+import json
+import threading
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from telethon import TelegramClient
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload, MediaIoBaseUpload
+
+# --- SUAS CREDENCIAIS DO TELEGRAM ---
+API_ID = 38758752
+API_HASH = '3a639cac45cfa78c3d3277309610840f'
+SCOPES = ['https://www.googleapis.com/auth/drive.file']
+
+# Pasta temporária dedicada dentro de Downloads do usuário atual.
+# Nunca usamos a pasta do projeto para não poluí-la nem arriscar colisão com git.
+PASTA_TEMP = os.path.join(os.path.expanduser('~'), 'Downloads', 'GerenciadorTemp')
+
+# Cache de fotos de perfil dos canais (servido pelo Eel via /cache_fotos/...).
+PASTA_CACHE_FOTOS = os.path.join('web', 'cache_fotos')
+
+# Timeout (segundos) para qualquer consulta síncrona ao Google Drive
+DRIVE_TIMEOUT = 15
+
+# M4: chunk de upload do Drive. Padrão do google-api-python-client é 100KB —
+# em arquivos grandes (vídeos de 500MB+) isso vira milhares de requisições HTTP
+# com handshake e overhead em cada uma. 25MB reduz o nº de chamadas em ~250x sem
+# derrubar retransmissões inteiras a cada falhazinha de rede (50MB deixava a janela
+# sensível demais para o upstream residencial típico).
+DRIVE_CHUNKSIZE = 25 * 1024 * 1024
+
+# P3c / P3b / M4a — constantes do motor de transferência.
+# WATCHDOG_TIMEOUT: tempo máximo sem progresso antes de matar a task atual.
+# WATCHDOG_CHECK_INTERVAL: periodicidade com que o watchdog acorda e checa.
+# CONN_CHECK_INTERVAL: heartbeat de conexão com o Telegram.
+# MAX_RETRIES_ARQUIVO: reinícios por arquivo antes de desistir dele e pular.
+# FILA_MAX: profundidade do pipeline downloader→uploader (2 = upload N, download N+1).
+WATCHDOG_TIMEOUT = 300
+WATCHDOG_CHECK_INTERVAL = 30
+CONN_CHECK_INTERVAL = 60
+MAX_RETRIES_ARQUIVO = 3
+FILA_MAX = 2
+
+# Pool dedicado para consultas da Library — separado do thread de download para
+# que a Library continue responsiva mesmo com uma transferência em andamento.
+_POOL_BIBLIOTECA = ThreadPoolExecutor(max_workers=4, thread_name_prefix='drive-library')
+
+# Pool para uploads ao Drive: permite rodar o upload do arquivo N em paralelo
+# com o download do N+1 (pipeline produtor/consumidor).
+_POOL_UPLOAD = ThreadPoolExecutor(max_workers=2, thread_name_prefix='drive-upload')
+
+eel.init('web')
+
+# threading.Event() em vez de flag bool — thread-safe por design e não sofre
+# com o gargalo de `global` declarado em async generators.
+parar_evento = threading.Event()
+
+# Thread atual de download (se houver). Mantida em variável de módulo para
+# podermos interrogar seu estado e evitar spawns concorrentes acidentais.
+_download_thread = None
+
+# P1 — Task atual de download_media. Permite cancelar o download em curso
+# (não só entre arquivos) quando o usuário clica Parar. Sem isso, parar_evento
+# só é verificado entre iterações do loop e o cancelamento pode demorar horas
+# em vídeos grandes.
+_download_task_atual = None
+
+# P3a — loop do thread de download. Precisamos dele para agendar o
+# task.cancel() no loop correto via call_soon_threadsafe (parar é chamado
+# do thread do Eel, não do thread do loop).
+_event_loop_atual = None
+
+# P3c — timestamp do último progress_callback. O watchdog compara
+# time.time() - _ultimo_progresso_ts contra WATCHDOG_TIMEOUT.
+_ultimo_progresso_ts = 0.0
+
+
+def _slug_canal(nome):
+    """Normaliza nome de canal para usar como nome de arquivo em disco."""
+    return re.sub(r'[^\w\-]+', '_', (nome or '')).strip('_').lower() or 'canal'
+
+
+def _normalizar_nome(s):
+    """Normalização usada para comparar nomes entre Telegram e Drive."""
+    return re.sub(r'\s+', ' ', (s or '').strip()).lower()
+
+
+def _listar_nomes_no_drive(id_pasta_raiz, nome_canal):
+    """
+    Retorna um set de nomes (normalizados) já presentes na pasta do curso no Drive.
+    Se a pasta do curso não existir ainda, retorna set vazio.
+    """
+    creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    drive_service = build('drive', 'v3', credentials=creds)
+
+    query_pasta = (
+        f"'{id_pasta_raiz}' in parents and name='{nome_canal}' "
+        f"and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    )
+    res = drive_service.files().list(q=query_pasta, fields='files(id, name)').execute()
+    pastas = res.get('files', [])
+    if not pastas:
+        return set()
+    id_pasta_curso = pastas[0]['id']
+
+    arq_res = drive_service.files().list(
+        q=f"'{id_pasta_curso}' in parents and trashed=false",
+        fields='files(name)'
+    ).execute()
+    return {
+        _normalizar_nome(a['name'])
+        for a in arq_res.get('files', [])
+        if not a['name'].startswith('_')
+    }
+
+
+def _garantir_pasta_temp():
+    os.makedirs(PASTA_TEMP, exist_ok=True)
+    return PASTA_TEMP
+
+
+@eel.expose
+def obter_pasta_temp():
+    """Usado pela tela Settings para mostrar onde os arquivos temporários vivem."""
+    _garantir_pasta_temp()
+    return PASTA_TEMP
+
+@eel.expose
+def testar_ponte_python(mensagem_do_html):
+    return "✅ Conexão perfeita! O Python assumiu o controle da nave."
+
+@eel.expose
+def buscar_aulas_real(nome_canal, id_pasta_raiz=None):
+    """
+    Busca mensagens de arquivo no canal do Telegram.
+    Se `id_pasta_raiz` for fornecido, consulta o Drive para marcar os arquivos
+    que já foram baixados (campo `ja_no_drive` no retorno).
+    """
+    print(f"\n[COMANDO] Buscando: '{nome_canal}'")
+
+    # Consulta ao Drive é síncrona e rápida; se falhar, apenas ignoramos — a busca
+    # continua funcionando sem a info de "já baixado".
+    nomes_no_drive = set()
+    if id_pasta_raiz:
+        try:
+            nomes_no_drive = _listar_nomes_no_drive(id_pasta_raiz, nome_canal)
+        except Exception as e:
+            print(f"[WARN] Falha ao listar arquivos no Drive: {e}")
+
+    async def buscar():
+        async with TelegramClient('sessao_estudos', API_ID, API_HASH) as client:
+            canal_alvo = None
+            async for conversa in client.iter_dialogs():
+                if conversa.name and conversa.name.strip().lower() == nome_canal.strip().lower():
+                    canal_alvo = conversa
+                    break
+
+            if not canal_alvo:
+                return {"erro": "Canal não encontrado no Telegram."}
+
+            aulas_encontradas = []
+            # reverse=True itera do mais antigo para o mais novo — a ordem do canal.
+            # O índice aqui é o que vira a "ordem" persistida no _ordem.json.
+            ordem_idx = 0
+            async for msg in client.iter_messages(canal_alvo, reverse=True):
+                if (msg.video or msg.document) and not (msg.file and msg.file.ext == '.webp'):
+                    txt = msg.text[:60].replace('\n', ' ') if msg.text else (msg.file.name if msg.file and msg.file.name else f"Arquivo_{msg.id}")
+                    tamanho = f"{msg.file.size / (1024 * 1024):.1f} MB" if msg.file and msg.file.size else "Desconhecido"
+                    nome_arquivo = msg.file.name if (msg.file and msg.file.name) else f"Aula_{msg.id}.mp4"
+                    aulas_encontradas.append({
+                        'id': msg.id,
+                        'nome': txt,
+                        'tamanho': tamanho,
+                        'ordem': ordem_idx,
+                        'nome_arquivo': nome_arquivo,
+                        'ja_no_drive': _normalizar_nome(nome_arquivo) in nomes_no_drive,
+                    })
+                    ordem_idx += 1
+            return {"sucesso": True, "aulas": aulas_encontradas}
+
+    try:
+        return asyncio.run(buscar())
+    except Exception as e:
+        return {"erro": str(e)}
+
+
+@eel.expose
+def verificar_sincronia(nome_canal, id_pasta_raiz):
+    """
+    M3: Compara arquivos do canal Telegram com os já presentes no Drive.
+    Retorna {'faltando_no_drive': [...], 'extra_no_drive': [...]}.
+    Reusa `buscar_aulas_real` e `_listar_nomes_no_drive` — nenhuma nova lógica
+    de fetch, só o diff nos dois sentidos.
+    """
+    resp = buscar_aulas_real(nome_canal, id_pasta_raiz)
+    if resp.get('erro'):
+        return {'erro': resp['erro']}
+    aulas_tg = resp.get('aulas', [])
+    nomes_tg = {_normalizar_nome(a['nome_arquivo']) for a in aulas_tg}
+
+    # Faltando no Drive: o próprio `buscar_aulas_real` já marcou ja_no_drive.
+    faltando = [
+        {
+            'id': a['id'],
+            'nome_arquivo': a['nome_arquivo'],
+            'tamanho': a['tamanho'],
+            'ordem': a['ordem'],
+        }
+        for a in aulas_tg if not a.get('ja_no_drive')
+    ]
+
+    # Extra no Drive: precisamos listar arquivos pela API pra pegar os nomes originais
+    # (o set retornado por _listar_nomes_no_drive é normalizado).
+    extra = []
+    try:
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        drive_service = build('drive', 'v3', credentials=creds)
+        query_pasta = (
+            f"'{id_pasta_raiz}' in parents and name='{nome_canal}' "
+            f"and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        )
+        res = drive_service.files().list(q=query_pasta, fields='files(id, name)').execute()
+        pastas = res.get('files', [])
+        if pastas:
+            id_pasta_curso = pastas[0]['id']
+            arq_res = drive_service.files().list(
+                q=f"'{id_pasta_curso}' in parents and trashed=false",
+                fields='files(id, name)'
+            ).execute()
+            for a in arq_res.get('files', []):
+                if a['name'].startswith('_'):
+                    continue
+                if _normalizar_nome(a['name']) not in nomes_tg:
+                    extra.append({'nome': a['name']})
+    except Exception as e:
+        return {'erro': f'Falha ao listar Drive: {e}'}
+
+    return {
+        'sucesso': True,
+        'total_telegram': len(aulas_tg),
+        'faltando_no_drive': faltando,
+        'extra_no_drive': extra,
+    }
+
+
+# ==========================================
+# MOTOR DA BIBLIOTECA (DRIVE)
+# ==========================================
+def _rodar_com_timeout(funcao, timeout=DRIVE_TIMEOUT):
+    """
+    Executa uma função síncrona no pool dedicado da Library (4 workers)
+    com limite de tempo. Mantemos um pool de módulo em vez de criar um novo
+    por chamada para:
+      - permitir várias consultas paralelas (grid + curso aberto + refresh);
+      - manter a Library responsiva mesmo com download em andamento em outra thread.
+    """
+    future = _POOL_BIBLIOTECA.submit(funcao)
+    return future.result(timeout=timeout)
+
+
+def _extrair_numero_ordem(nome):
+    """
+    Fallback de ordenação quando o _ordem.json não existe.
+    Extrai o primeiro número do nome; sem número -> 0 (início).
+    """
+    match = re.search(r'\d+', nome)
+    return int(match.group()) if match else 0
+
+
+# Nome fixo do índice gravado em cada pasta de curso no Drive.
+ORDEM_FILENAME = '_ordem.json'
+
+
+def _ler_ordem_drive(drive_service, id_pasta_curso):
+    """
+    Procura `_ordem.json` dentro da pasta do curso. Retorna (data_dict, file_id)
+    ou (None, None) se não existir / não for legível.
+    """
+    query = f"'{id_pasta_curso}' in parents and name='{ORDEM_FILENAME}' and trashed=false"
+    res = drive_service.files().list(q=query, fields='files(id, name)').execute()
+    arquivos = res.get('files', [])
+    if not arquivos:
+        return None, None
+    file_id = arquivos[0]['id']
+    try:
+        conteudo = drive_service.files().get_media(fileId=file_id).execute()
+        return json.loads(conteudo.decode('utf-8')), file_id
+    except Exception:
+        return None, file_id
+
+
+def _salvar_ordem_drive(drive_service, id_pasta_curso, data, file_id=None):
+    """Cria ou atualiza o arquivo _ordem.json na pasta do curso."""
+    conteudo = json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8')
+    media = MediaIoBaseUpload(io.BytesIO(conteudo), mimetype='application/json', resumable=False)
+
+    if file_id:
+        drive_service.files().update(fileId=file_id, media_body=media).execute()
+    else:
+        metadata = {'name': ORDEM_FILENAME, 'parents': [id_pasta_curso], 'mimeType': 'application/json'}
+        drive_service.files().create(body=metadata, media_body=media, fields='id').execute()
+
+
+def _mesclar_ordem(ordem_existente, novas_entradas):
+    """
+    Mescla novas entradas (lista de {nome, ordem}) no dict/lista existente.
+    Regra: arquivos já presentes mantêm sua ordem original; novos são adicionados.
+    """
+    atual = ordem_existente.get('arquivos', []) if ordem_existente else []
+    nomes_existentes = {e['nome'] for e in atual}
+    for entrada in novas_entradas:
+        if entrada['nome'] not in nomes_existentes:
+            atual.append({'nome': entrada['nome'], 'ordem': entrada['ordem']})
+            nomes_existentes.add(entrada['nome'])
+    return atual
+
+
+@eel.expose
+def carregar_cursos_drive(id_pasta_raiz):
+    def consulta():
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        drive_service = build('drive', 'v3', credentials=creds)
+
+        query = f"'{id_pasta_raiz}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        resultados = drive_service.files().list(q=query, fields="files(id, name)").execute()
+        pastas = resultados.get('files', [])
+
+        cursos = []
+        for pasta in pastas:
+            query_aulas = f"'{pasta['id']}' in parents and trashed=false"
+            aulas_res = drive_service.files().list(q=query_aulas, fields="files(id, name)").execute()
+            # Arquivos iniciados com "_" são internos (ex: _ordem.json) e não contam.
+            aulas_visiveis = [a for a in aulas_res.get('files', []) if not a['name'].startswith('_')]
+            cursos.append({
+                'id': pasta['id'],
+                'title': pasta['name'],
+                'tag': 'CURSO SALVO',
+                'total_lessons': len(aulas_visiveis),
+                'image': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=800'
+            })
+        return cursos
+
+    try:
+        cursos = _rodar_com_timeout(consulta)
+        return {"sucesso": True, "cursos": cursos}
+    except FuturesTimeoutError:
+        return {"erro": "timeout", "mensagem": f"A consulta ao Google Drive demorou mais que {DRIVE_TIMEOUT}s."}
+    except Exception as e:
+        return {"erro": str(e)}
+
+
+@eel.expose
+def carregar_aulas_curso(id_pasta_curso):
+    def consulta():
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        drive_service = build('drive', 'v3', credentials=creds)
+
+        query = f"'{id_pasta_curso}' in parents and trashed=false"
+        resultados = drive_service.files().list(q=query, fields="files(id, name, mimeType)").execute()
+        arquivos = resultados.get('files', [])
+        ordem_data, _ = _ler_ordem_drive(drive_service, id_pasta_curso)
+        return arquivos, ordem_data
+
+    try:
+        arquivos, ordem_data = _rodar_com_timeout(consulta)
+
+        # Filtra arquivos internos (_ordem.json etc.) — invisíveis na Library.
+        arquivos = [a for a in arquivos if not a['name'].startswith('_')]
+
+        if ordem_data and ordem_data.get('arquivos'):
+            # Ordenação pela posição real do canal, persistida no _ordem.json.
+            mapa_ordem = {e['nome']: e['ordem'] for e in ordem_data['arquivos']}
+            # Arquivos fora do índice (adicionados manualmente) vão pro fim.
+            pos_faltante = max(mapa_ordem.values(), default=-1) + 1
+            def chave(a):
+                return mapa_ordem.get(a['name'], pos_faltante)
+            arquivos.sort(key=chave)
+        else:
+            # Fallback: ordena pelo primeiro número do nome quando não há _ordem.json.
+            arquivos.sort(key=lambda x: _extrair_numero_ordem(x['name']))
+
+        aulas = []
+        for i, arq in enumerate(arquivos):
+            aulas.append({
+                'id': arq['id'],
+                'num': str(i + 1).zfill(2),
+                'title': arq['name'],
+                'type': 'video' if 'video' in arq['mimeType'] else 'document',
+                # Link é resolvido pelo player via obter_link_aula(); mandamos só o ID.
+                'link': f"https://drive.google.com/file/d/{arq['id']}/preview"
+            })
+        return {"sucesso": True, "aulas": aulas}
+    except FuturesTimeoutError:
+        return {"erro": "timeout", "mensagem": f"Leitura do curso excedeu {DRIVE_TIMEOUT}s."}
+    except Exception as e:
+        return {"erro": str(e)}
+
+
+@eel.expose
+def reindexar_cursos_drive(id_pasta_raiz):
+    """
+    Para cada pasta de curso sob id_pasta_raiz que ainda NÃO tenha _ordem.json,
+    cria um com a ordem atual dos arquivos (ordenação atual do Drive).
+    Usado pelo botão "Reindexar Cursos Existentes" em Settings.
+    """
+    def tarefa():
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        drive_service = build('drive', 'v3', credentials=creds)
+
+        query_pastas = f"'{id_pasta_raiz}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        pastas = drive_service.files().list(q=query_pastas, fields='files(id, name)').execute().get('files', [])
+
+        reindexados = []
+        ja_tinham = []
+        for pasta in pastas:
+            existente, _ = _ler_ordem_drive(drive_service, pasta['id'])
+            if existente:
+                ja_tinham.append(pasta['name'])
+                continue
+
+            query_arq = f"'{pasta['id']}' in parents and trashed=false"
+            arquivos = drive_service.files().list(q=query_arq, fields='files(id, name)').execute().get('files', [])
+            # Filtra internos e ordena pelo número do nome (melhor chute disponível).
+            arquivos = [a for a in arquivos if not a['name'].startswith('_')]
+            arquivos.sort(key=lambda x: _extrair_numero_ordem(x['name']))
+
+            entradas = [{'nome': a['name'], 'ordem': i} for i, a in enumerate(arquivos)]
+            _salvar_ordem_drive(drive_service, pasta['id'], {
+                'curso': pasta['name'],
+                'arquivos': entradas,
+            })
+            reindexados.append(pasta['name'])
+
+        return reindexados, ja_tinham
+
+    try:
+        reindexados, ja_tinham = _rodar_com_timeout(tarefa, timeout=60)
+        return {"sucesso": True, "reindexados": reindexados, "ja_tinham": ja_tinham}
+    except FuturesTimeoutError:
+        return {"erro": "timeout", "mensagem": "A reindexação excedeu 60s. Tente de novo."}
+    except Exception as e:
+        return {"erro": str(e)}
+
+
+@eel.expose
+def obter_link_aula(file_id):
+    """
+    Correção 4: resolve URLs de reprodução e checa se o arquivo é publicamente acessível.
+    Retorna todas as opções para o frontend tentar em cascata.
+    """
+    preview = f"https://drive.google.com/file/d/{file_id}/preview"
+    download = f"https://drive.google.com/uc?export=download&id={file_id}"
+    drive_url = f"https://drive.google.com/file/d/{file_id}/view"
+
+    def checar_e_corrigir():
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        drive_service = build('drive', 'v3', credentials=creds)
+        perms = drive_service.permissions().list(
+            fileId=file_id, fields='permissions(id,type,role)'
+        ).execute()
+        publico = any(p.get('type') == 'anyone' for p in perms.get('permissions', []))
+        if publico:
+            return True
+        # Arquivo legado (enviado antes do fix): tenta tornar público automaticamente
+        # para que o iframe da Library consiga reproduzir sem autenticação.
+        try:
+            drive_service.permissions().create(
+                fileId=file_id,
+                body={'type': 'anyone', 'role': 'reader'},
+            ).execute()
+            return True
+        except Exception:
+            return False
+
+    try:
+        is_public = _rodar_com_timeout(checar_e_corrigir)
+    except Exception:
+        # Se a checagem falhar, não bloqueamos o play — só marcamos como desconhecido.
+        is_public = None
+
+    return {
+        "sucesso": True,
+        "is_public": is_public,
+        "preview_url": preview,
+        "download_url": download,
+        "drive_url": drive_url,
+    }
+
+# ==========================================
+# FOTOS DE PERFIL DOS CANAIS (MELHORIA 1)
+# ==========================================
+@eel.expose
+def obter_fotos_canais(lista_nomes):
+    """
+    Baixa em lote as fotos de perfil dos canais informados e as salva em
+    PASTA_CACHE_FOTOS. Abre uma única conexão Telegram para todos.
+    Retorna {nome_canal: url_relativa_servida_pelo_eel}. Canal sem foto
+    ou não encontrado é omitido — o frontend mantém a imagem fallback.
+    """
+    os.makedirs(PASTA_CACHE_FOTOS, exist_ok=True)
+    resultado = {}
+    # Primeiro passa pelo cache — canais já baixados respondem sem tocar no Telegram.
+    pendentes = []
+    for nome in lista_nomes:
+        slug = _slug_canal(nome)
+        caminho = os.path.join(PASTA_CACHE_FOTOS, f"{slug}.jpg")
+        if os.path.exists(caminho) and os.path.getsize(caminho) > 0:
+            resultado[nome] = f"/cache_fotos/{slug}.jpg"
+        else:
+            pendentes.append(nome)
+
+    if not pendentes:
+        return resultado
+
+    async def baixar_todos():
+        async with TelegramClient(
+            'sessao_estudos', API_ID, API_HASH,
+            connection_retries=5, request_retries=5
+        ) as client:
+            mapa_dialogs = {}
+            async for conversa in client.iter_dialogs():
+                if conversa.name:
+                    mapa_dialogs[conversa.name.strip().lower()] = conversa
+
+            for nome in pendentes:
+                conversa = mapa_dialogs.get(nome.strip().lower())
+                if not conversa:
+                    continue
+                slug = _slug_canal(nome)
+                caminho = os.path.join(PASTA_CACHE_FOTOS, f"{slug}.jpg")
+                try:
+                    path = await client.download_profile_photo(conversa, file=caminho)
+                    if path and os.path.exists(caminho) and os.path.getsize(caminho) > 0:
+                        resultado[nome] = f"/cache_fotos/{slug}.jpg"
+                except Exception:
+                    pass
+
+    try:
+        asyncio.run(baixar_todos())
+    except Exception as e:
+        print(f"[WARN] Falha ao baixar fotos de canais: {e}")
+    return resultado
+
+
+# ==========================================
+# MOTOR DE TRANSFERÊNCIA (DOWNLOAD / UPLOAD)
+# ==========================================
+@eel.expose
+def parar_transferencia_python():
+    """
+    P1 — parada real, não só entre arquivos.
+    1) parar_evento.set() sinaliza para o loop principal não pegar o próximo.
+    2) Cancela a asyncio.Task do download em curso via call_soon_threadsafe,
+       porque essa task vive em outro loop/thread. Sem esse cancel, um
+       download_media podia demorar horas em um vídeo grande antes do flag
+       ser visto.
+    """
+    parar_evento.set()
+    try:
+        eel.addLogVisual("⏳ Parada registrada — cancelando download atual...")()
+    except Exception:
+        pass
+    try:
+        if _download_task_atual and _event_loop_atual and not _download_task_atual.done():
+            _event_loop_atual.call_soon_threadsafe(_download_task_atual.cancel)
+    except Exception as e:
+        try:
+            eel.addLogVisual(f"⚠️ Falha ao cancelar download atual: {e}")()
+        except Exception:
+            pass
+
+
+def _remover_arquivo_parcial(caminho):
+    """P1 — remove best-effort um .tmp deixado por download cancelado/abortado."""
+    try:
+        if caminho and os.path.exists(caminho):
+            os.remove(caminho)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _upload_sync(drive_service, caminho_local, nome_original, id_pasta_destino):
+    """
+    Upload + permissão pública. Roda em ThreadPoolExecutor para liberar o loop
+    async durante o I/O bloqueante do Google.
+    M4d: o delete do arquivo temp foi movido para o consumidor async (usa
+    await asyncio.sleep em vez de time.sleep — não trava o loop).
+    Retorna dict com 'nome'/'file_id' em caso de sucesso, ou {'erro': str}.
+    """
+    try:
+        metadados_arquivo = {'name': nome_original, 'parents': [id_pasta_destino]}
+        # M4c: chunks de 25MB reduzem drasticamente o overhead HTTP em arquivos
+        # grandes (padrão do client é 100KB — ~2000 chamadas por vídeo de 200MB).
+        media = MediaFileUpload(caminho_local, resumable=True, chunksize=DRIVE_CHUNKSIZE)
+        try:
+            arquivo_criado = drive_service.files().create(
+                body=metadados_arquivo, media_body=media, fields='id'
+            ).execute()
+            novo_file_id = arquivo_criado.get('id')
+        finally:
+            del media  # libera handle do arquivo local
+
+        # Arquivos de escopo drive.file não são públicos por padrão; o iframe
+        # da Library não consegue reproduzir sem essa permissão.
+        try:
+            drive_service.permissions().create(
+                fileId=novo_file_id,
+                body={'type': 'anyone', 'role': 'reader'},
+            ).execute()
+        except Exception as e_perm:
+            try:
+                eel.addLogVisual(f"⚠️ Permissão pública falhou em {nome_original}: {e_perm}")()
+            except Exception:
+                pass
+
+        return {'nome': nome_original, 'file_id': novo_file_id}
+    except Exception as e:
+        return {'erro': str(e), 'nome': nome_original, 'caminho': caminho_local}
+
+
+async def _check_connection(client):
+    """
+    P3b — heartbeat de conexão. A cada CONN_CHECK_INTERVAL segundos verifica se
+    o TelegramClient ainda está conectado; se caiu, reconecta. Sem isso, um
+    socket morto silencioso deixava o download_media pendurado pra sempre
+    (via de falha observada: 12h em 11% sem progresso).
+    """
+    try:
+        while not parar_evento.is_set():
+            await asyncio.sleep(CONN_CHECK_INTERVAL)
+            try:
+                if not client.is_connected():
+                    try:
+                        eel.addLogVisual("🔌 Telegram desconectado — reconectando...")()
+                    except Exception:
+                        pass
+                    try:
+                        await client.connect()
+                        try:
+                            eel.addLogVisual("🔌 Telegram reconectado.")()
+                        except Exception:
+                            pass
+                    except Exception as e:
+                        try:
+                            eel.addLogVisual(f"⚠️ Falha ao reconectar Telegram: {e}")()
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+    except asyncio.CancelledError:
+        pass
+
+
+async def _watchdog(cancelador):
+    """
+    P3c — vigia o progresso. Se _ultimo_progresso_ts ficar mais que
+    WATCHDOG_TIMEOUT sem atualizar, chama `cancelador()` para abortar o
+    download atual. O produtor interpreta esse cancel como "reiniciar tentativa"
+    (vs cancelamento pelo usuário, que carrega parar_evento.is_set()).
+    """
+    global _ultimo_progresso_ts
+    try:
+        while not parar_evento.is_set():
+            await asyncio.sleep(WATCHDOG_CHECK_INTERVAL)
+            if _ultimo_progresso_ts == 0:
+                continue  # não há download ativo — nada a vigiar
+            delta = time.time() - _ultimo_progresso_ts
+            if delta > WATCHDOG_TIMEOUT:
+                try:
+                    eel.addLogVisual(
+                        f"🐕 Watchdog: {int(delta)}s sem progresso — cancelando arquivo atual."
+                    )()
+                except Exception:
+                    pass
+                try:
+                    cancelador()
+                except Exception:
+                    pass
+                _ultimo_progresso_ts = 0  # evita cancel repetido entre retries
+    except asyncio.CancelledError:
+        pass
+
+
+async def _produtor(client, mensagens, ordens, total_bytes, total, fila):
+    """
+    Baixa arquivos e empurra (caminho, nome, ordem) para `fila`. Cada download
+    vira uma asyncio.Task explícita registrada em _download_task_atual para que
+    possa ser cancelada (pelo usuário via parar_transferencia_python, ou pelo
+    watchdog quando trava). Até MAX_RETRIES_ARQUIVO tentativas por arquivo.
+    """
+    global _download_task_atual, _ultimo_progresso_ts
+
+    bytes_acumulados = 0
+    concluidos = 0
+
+    for msg in mensagens:
+        if parar_evento.is_set():
+            break
+
+        nome_original = msg.file.name if (msg.file and msg.file.name) else f"Aula_{msg.id}.mp4"
+        ordem_msg = ordens.get(str(msg.id), msg.id)
+        bytes_arquivo = msg.file.size if (msg.file and msg.file.size) else 0
+
+        pasta_temp = _garantir_pasta_temp()
+        caminho_temp = os.path.join(pasta_temp, nome_original)
+
+        sucesso = False
+        for tentativa in range(1, MAX_RETRIES_ARQUIVO + 1):
+            if parar_evento.is_set():
+                break
+
+            # Estado por tentativa (via default args para isolamento no closure).
+            ultimo_tick = [0.0]
+            marcos_emitidos = set()
+            inicio_ts = [time.monotonic()]
+
+            def _progress_cb(current, _total_bruto,
+                             base_acum=bytes_acumulados, conc=concluidos,
+                             tick=ultimo_tick, marcos=marcos_emitidos,
+                             nome=nome_original, tam=bytes_arquivo, inicio=inicio_ts):
+                # P3c — qualquer byte recebido reseta o relógio do watchdog.
+                global _ultimo_progresso_ts
+                _ultimo_progresso_ts = time.time()
+
+                agora = time.monotonic()
+
+                # P3e + M4f — log textual a cada 25% (com MB/s no mesmo evento).
+                # Quatro logs por arquivo é o sweet spot: detalha velocidade sem
+                # poluir o painel com 11 linhas por vídeo (caso fosse 10 em 10).
+                if tam > 0:
+                    pct = int((current / tam) * 100)
+                    marco = (pct // 25) * 25
+                    if 25 <= marco <= 100 and marco not in marcos:
+                        marcos.add(marco)
+                        decorrido = max(agora - inicio[0], 0.001)
+                        mb_s = (current / (1024 * 1024)) / decorrido
+                        try:
+                            eel.addLogVisual(
+                                f"⬇️ {nome} — {marco}% "
+                                f"({current/(1024*1024):.1f} / {tam/(1024*1024):.1f} MB) — "
+                                f"{mb_s:.2f} MB/s"
+                            )()
+                        except Exception:
+                            pass
+
+                # Throttle da barra visual em 150ms (mantém UX sem floodar o Eel).
+                if agora - tick[0] < 0.15 and current < _total_bruto:
+                    return
+                tick[0] = agora
+                try:
+                    eel.progressoBytesVisual(
+                        base_acum + current, total_bytes, conc, total
+                    )()
+                except Exception:
+                    pass
+
+            try:
+                try:
+                    eel.addLogVisual(
+                        f"⬇️ Baixando ({tentativa}/{MAX_RETRIES_ARQUIVO}): {nome_original}"
+                    )()
+                except Exception:
+                    pass
+
+                _ultimo_progresso_ts = time.time()
+
+                # P1 — asyncio.ensure_future cria uma Task de verdade cancelável.
+                # Guardamos em _download_task_atual para que parar_transferencia_python
+                # (em outro thread) possa agendar .cancel() via call_soon_threadsafe.
+                task = asyncio.ensure_future(
+                    client.download_media(msg, file=caminho_temp, progress_callback=_progress_cb)
+                )
+                _download_task_atual = task
+                caminho_local = await task
+                _download_task_atual = None
+                _ultimo_progresso_ts = 0.0
+
+                bytes_acumulados += bytes_arquivo
+                concluidos += 1
+                try:
+                    eel.progressoBytesVisual(bytes_acumulados, total_bytes, concluidos, total)()
+                except Exception:
+                    pass
+
+                # M4a — fila com maxsize=FILA_MAX. Bloqueia quando já há 2 uploads
+                # pendentes: evita lotar o disco temporário e estabiliza o pipeline.
+                await fila.put((caminho_local, nome_original, int(ordem_msg)))
+                sucesso = True
+                break
+
+            except asyncio.CancelledError:
+                _download_task_atual = None
+                _remover_arquivo_parcial(caminho_temp)
+                if parar_evento.is_set():
+                    # Cancelamento veio do usuário (botão Parar).
+                    try:
+                        eel.addLogVisual(
+                            f"🛑 Download cancelado. Arquivo parcial removido: {nome_original}"
+                        )()
+                    except Exception:
+                        pass
+                    return
+                # Cancelamento veio do watchdog → reinicia esta mesma mensagem.
+                try:
+                    eel.addLogVisual(
+                        f"♻️ Reiniciando {nome_original} (tentativa {tentativa}/{MAX_RETRIES_ARQUIVO})..."
+                    )()
+                except Exception:
+                    pass
+                # P3d — sleep assíncrono, jamais time.sleep em contexto async.
+                await asyncio.sleep(2)
+                continue
+
+            except Exception as e:
+                _download_task_atual = None
+                _remover_arquivo_parcial(caminho_temp)
+                try:
+                    eel.addLogVisual(
+                        f"❌ Erro no download de {nome_original}: {e} "
+                        f"(tentativa {tentativa}/{MAX_RETRIES_ARQUIVO})"
+                    )()
+                except Exception:
+                    pass
+                await asyncio.sleep(2)
+                continue
+
+        if not sucesso and not parar_evento.is_set():
+            try:
+                eel.addLogVisual(
+                    f"⏭️ Pulando {nome_original} após {MAX_RETRIES_ARQUIVO} tentativas falhas."
+                )()
+            except Exception:
+                pass
+
+
+async def _consumidor(drive_service, id_pasta_destino, fila, resultados_ref):
+    """
+    Consome da fila e faz upload em ThreadPoolExecutor (libera o loop).
+    Depois do upload, tenta remover o temp (retry com asyncio.sleep — M4d).
+    None na fila = sinal de fim.
+    """
+    loop = asyncio.get_event_loop()
+    while True:
+        item = await fila.get()
+        try:
+            if item is None:
+                break
+            caminho_local, nome_original, ordem_msg = item
+            try:
+                eel.addLogVisual(f"☁️ Subindo: {nome_original}")()
+            except Exception:
+                pass
+            resultado = await loop.run_in_executor(
+                _POOL_UPLOAD, _upload_sync,
+                drive_service, caminho_local, nome_original, id_pasta_destino
+            )
+            if isinstance(resultado, dict) and not resultado.get('erro'):
+                resultados_ref.append({'nome': nome_original, 'ordem': ordem_msg})
+                try:
+                    eel.addLogVisual(f"✅ {nome_original}")()
+                except Exception:
+                    pass
+            else:
+                erro = resultado.get('erro') if isinstance(resultado, dict) else str(resultado)
+                try:
+                    eel.addLogVisual(f"⚠️ Falhou no upload de {nome_original}: {erro}")()
+                except Exception:
+                    pass
+
+            # M4d — delete com retry em contexto async. Windows às vezes segura
+            # o handle por alguns ms após o upload; dormir 0.3s * 3 resolve.
+            for _ in range(3):
+                try:
+                    if os.path.exists(caminho_local):
+                        os.remove(caminho_local)
+                    break
+                except Exception:
+                    await asyncio.sleep(0.3)
+        finally:
+            fila.task_done()
+
+
+async def _motor_transferencia(nome_canal, id_pasta_raiz, lista_ids, ordens):
+    """
+    Orquestração: Drive setup, TelegramClient com timeouts agressivos,
+    resolução do canal, pipeline produtor/consumidor, watchdog, heartbeat
+    de conexão e persistência do _ordem.json ao final.
+    """
+    try:
+        try:
+            eel.addLogVisual("🔄 Conectando ao Google Drive...")()
+        except Exception:
+            pass
+        if not os.path.exists('token.json'):
+            try:
+                eel.addLogVisual("❌ Erro: token.json não encontrado.")()
+                eel.finalizarTransferenciaVisual()()
+            except Exception:
+                pass
+            return
+
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        drive_service = build('drive', 'v3', credentials=creds)
+        try:
+            eel.addLogVisual("✅ Drive conectado!")()
+        except Exception:
+            pass
+
+        try:
+            eel.addLogVisual(f"📁 Configurando pasta '{nome_canal}' no Drive...")()
+        except Exception:
+            pass
+        query_pasta = (
+            f"'{id_pasta_raiz}' in parents and name='{nome_canal}' "
+            f"and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        )
+        res_pasta = drive_service.files().list(q=query_pasta, fields="files(id, name)").execute()
+        pastas_encontradas = res_pasta.get('files', [])
+
+        if not pastas_encontradas:
+            metadados_pasta = {
+                'name': nome_canal,
+                'mimeType': 'application/vnd.google-apps.folder',
+                'parents': [id_pasta_raiz],
+            }
+            pasta_curso = drive_service.files().create(body=metadados_pasta, fields='id').execute()
+            id_pasta_destino = pasta_curso.get('id')
+            try:
+                eel.addLogVisual(f"✅ Nova pasta '{nome_canal}' criada!")()
+            except Exception:
+                pass
+        else:
+            id_pasta_destino = pastas_encontradas[0].get('id')
+            try:
+                eel.addLogVisual(f"✅ Pasta '{nome_canal}' encontrada.")()
+            except Exception:
+                pass
+
+        ordem_data, ordem_file_id = _ler_ordem_drive(drive_service, id_pasta_destino)
+        if not ordem_data:
+            ordem_data = {'curso': nome_canal, 'arquivos': []}
+
+        # P3b — timeouts agressivos contra hang silencioso. timeout=30 recusa
+        # sockets que não respondem. connection_retries=10 + retry_delay=5
+        # tolera quedas curtas de rede sem abortar. auto_reconnect=True faz o
+        # client tentar sozinho quando perde conexão.
+        # M4b — sequential_updates=False libera processamento de updates em
+        # paralelo (ganho de throughput em sessões longas).
+        async with TelegramClient(
+            'sessao_estudos', API_ID, API_HASH,
+            timeout=30,
+            connection_retries=10,
+            request_retries=5,
+            retry_delay=5,
+            auto_reconnect=True,
+            sequential_updates=False,
+        ) as client:
+            # M4b — eleva o threshold de flood: floods menores que 60s são
+            # absorvidos internamente em vez de propagar erro.
+            client.flood_sleep_threshold = 60
+
+            canal_alvo = None
+            async for conversa in client.iter_dialogs():
+                if conversa.name and conversa.name.strip().lower() == nome_canal.strip().lower():
+                    canal_alvo = conversa
+                    break
+
+            if not canal_alvo:
+                try:
+                    eel.addLogVisual("❌ Canal não encontrado no Telegram.")()
+                    eel.finalizarTransferenciaVisual()()
+                except Exception:
+                    pass
+                return
+
+            ids_inteiros = [int(i) for i in lista_ids]
+            mensagens_raw = await client.get_messages(canal_alvo, ids=ids_inteiros)
+            mensagens = [m for m in mensagens_raw if m is not None]
+            mensagens.sort(key=lambda m: m.id)
+
+            total = len(mensagens)
+            if total == 0:
+                try:
+                    eel.addLogVisual("❌ Nenhuma das mensagens selecionadas foi encontrada.")()
+                    eel.finalizarTransferenciaVisual()()
+                except Exception:
+                    pass
+                return
+
+            total_bytes = sum(
+                (m.file.size if m.file and m.file.size else 0) for m in mensagens
+            )
+            try:
+                eel.addLogVisual(
+                    f"🚀 Iniciando {total} arquivo(s) ({total_bytes / (1024*1024):.1f} MB totais)..."
+                )()
+                eel.progressoBytesVisual(0, total_bytes, 0, total)()
+            except Exception:
+                pass
+
+            # M4a — pipeline. Produtor baixa; consumidor sobe; fila com maxsize=2.
+            fila = asyncio.Queue(maxsize=FILA_MAX)
+            resultados_ref = []
+
+            # P3c — o watchdog chama este helper para cancelar o download atual.
+            def _cancelar_download_atual():
+                t = _download_task_atual
+                if t and not t.done():
+                    t.cancel()
+
+            watchdog_task = asyncio.create_task(_watchdog(_cancelar_download_atual))
+            conn_task = asyncio.create_task(_check_connection(client))
+            consumidor_task = asyncio.create_task(
+                _consumidor(drive_service, id_pasta_destino, fila, resultados_ref)
+            )
+
+            try:
+                await _produtor(client, mensagens, ordens, total_bytes, total, fila)
+                # Sinaliza fim para o consumidor drenar o que sobrou na fila.
+                await fila.put(None)
+                await consumidor_task
+            finally:
+                watchdog_task.cancel()
+                conn_task.cancel()
+                for t in (watchdog_task, conn_task):
+                    try:
+                        await t
+                    except Exception:
+                        pass
+
+            if resultados_ref:
+                try:
+                    ordem_data['curso'] = nome_canal
+                    ordem_data['arquivos'] = _mesclar_ordem(ordem_data, resultados_ref)
+                    _salvar_ordem_drive(drive_service, id_pasta_destino, ordem_data, ordem_file_id)
+                    eel.addLogVisual(
+                        f"🗂️ Ordem salva em _ordem.json ({len(resultados_ref)} novos)."
+                    )()
+                except Exception as e_ord:
+                    try:
+                        eel.addLogVisual(f"⚠️ Não foi possível salvar _ordem.json: {e_ord}")()
+                    except Exception:
+                        pass
+
+            try:
+                if parar_evento.is_set():
+                    eel.addLogVisual(
+                        f"🛑 Download parado. {len(resultados_ref)} arquivo(s) concluído(s) de {total}."
+                    )()
+                else:
+                    eel.addLogVisual("🏁 Fim da fila de transferência!")()
+                eel.finalizarTransferenciaVisual()()
+            except Exception:
+                pass
+    except Exception as erro_fatal:
+        try:
+            eel.addLogVisual(f"❌ Erro fatal: {erro_fatal}")()
+            eel.finalizarTransferenciaVisual()()
+        except Exception:
+            pass
+
+
+@eel.expose
+def iniciar_transferencia_real(nome_canal, id_pasta_raiz, lista_ids, ordens=None):
+    """
+    `ordens` é um dict {str(msg_id): int(ordem_no_canal)}.
+
+    Arquitetura (P3 + P1 + M4):
+      - Event loop explícito por thread (P3a) — substitui asyncio.run(), que
+        criava/destruía loop por chamada e interagia mal com o Eel/bottle.
+      - TelegramClient com timeout=30, connection_retries=10, retry_delay=5,
+        auto_reconnect=True (P3b) — mata socket morto rápido.
+      - Watchdog de progresso + heartbeat de conexão (P3c).
+      - Pipeline produtor/consumidor com asyncio.Queue(maxsize=2) (M4a).
+      - Download cancelável via asyncio.Task + CancelledError (P1).
+      - Sem time.sleep em contexto async (P3d).
+      - Logs a cada 25% com MB/s (P3e + M4f).
+    """
+    parar_evento.clear()
+    ordens = ordens or {}
+
+    global _download_thread
+    if _download_thread and _download_thread.is_alive():
+        try:
+            eel.addLogVisual("⚠️ Já existe um download em andamento.")()
+        except Exception:
+            pass
+        return
+
+    def tarefa_em_background():
+        # P3a — loop explícito via new_event_loop + set_event_loop.
+        # Precisamos dele acessível em _event_loop_atual porque o botão Parar
+        # (chamado no thread do Eel) agenda task.cancel() via call_soon_threadsafe.
+        global _event_loop_atual, _download_task_atual, _ultimo_progresso_ts
+        try:
+            eel.addLogVisual(
+                "⚙️ Download rodando em background (thread dedicada). A Library segue responsiva."
+            )()
+        except Exception:
+            pass
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        _event_loop_atual = loop
+        _download_task_atual = None
+        _ultimo_progresso_ts = 0.0
+
+        try:
+            loop.run_until_complete(
+                _motor_transferencia(nome_canal, id_pasta_raiz, lista_ids, ordens)
+            )
+        except Exception as erro_fatal:
+            try:
+                eel.addLogVisual(f"❌ Erro fatal: {erro_fatal}")()
+                eel.finalizarTransferenciaVisual()()
+            except Exception:
+                pass
+        finally:
+            try:
+                loop.close()
+            except Exception:
+                pass
+            _event_loop_atual = None
+            _download_task_atual = None
+            _ultimo_progresso_ts = 0.0
+
+    # Thread de SO real (não greenlet). Isola o download da main thread do Eel
+    # para não competir com consultas da Library.
+    _download_thread = threading.Thread(
+        target=tarefa_em_background,
+        daemon=True,
+        name='gerenciador-download',
+    )
+    _download_thread.start()
+
+if __name__ == '__main__':
+    print("🚀 Servidor Python rodando! Abrindo interface...")
+    eel.start('index.html', size=(1280, 850))
