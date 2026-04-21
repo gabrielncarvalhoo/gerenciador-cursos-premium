@@ -31,6 +31,11 @@
             <h1 class="text-xl font-bold tracking-widest uppercase text-primary">Gerenciador</h1>
             <p class="text-xs uppercase tracking-widest text-[#e5e2e1]/50">Premium Archive</p>
         </div>
+        <div id="perfil-selector" onclick="abrirModalPerfis()" class="mx-4 mb-4 px-4 py-3 rounded-lg bg-surface-container border border-outline-variant/15 cursor-pointer hover:bg-surface-container-high transition-all flex items-center gap-3">
+            <span class="material-symbols-outlined text-primary text-lg">person</span>
+            <span id="perfil-nome-ativo" class="text-sm text-on-surface truncate flex-1">Carregando...</span>
+            <span class="material-symbols-outlined text-on-surface-variant text-sm">expand_more</span>
+        </div>
         <ul class="flex flex-col gap-2 flex-1">
             <li><a href="#" onclick="showView('download')" id="nav-download" class="nav-item flex items-center gap-4 px-4 py-3 rounded-lg text-primary font-bold border-r-2 border-primary bg-gradient-to-r from-primary/10 to-transparent transition-all"><span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">cloud_download</span><span class="text-sm">Download Center</span></a></li>
             <li><a href="#" onclick="showView('library')" id="nav-library" class="nav-item flex items-center gap-4 px-4 py-3 rounded-lg text-[#e5e2e1]/50 hover:text-on-surface hover:bg-surface-container-high transition-all"><span class="material-symbols-outlined text-lg">library_books</span><span class="text-sm">Library</span></a></li>
@@ -819,9 +824,9 @@
         // =========================================================
         // LÓGICA DA BIBLIOTECA E PLAYER PERSISTENTE
         // =========================================================
-        const DB_KEY = 'gerenciador_cursos_progresso';
-        const LAST_LESSON_KEY = 'gerenciador_cursos_last_lesson';
-        const LESSONS_MAP_KEY = 'gerenciador_cursos_lessons_map';
+        const DB_KEY = _getPrefixo() + 'gerenciador_cursos_progresso';
+        const LAST_LESSON_KEY = _getPrefixo() + 'gerenciador_cursos_last_lesson';
+        const LESSONS_MAP_KEY = _getPrefixo() + 'gerenciador_cursos_lessons_map';
         let currentCourseLessons = [];
         let currentCourseId = null;
         let _retomandoTimer = null;
@@ -859,7 +864,7 @@
         // via postMessage. Na prática, o Drive normalmente não responde — e
         // é por isso que ZERO elementos visuais foram adicionados; se um dia
         // começarem a responder, a captura passa a acontecer automaticamente.
-        const LESSON_TIME_PREFIX = 'lessonTime_';
+        const LESSON_TIME_PREFIX = _getPrefixo() + 'lessonTime_';
 
         function _formatTime(seg) {
             const h = Math.floor(seg / 3600);
@@ -912,7 +917,7 @@
         }
 
         // ============ NOTAS POR AULA ============
-        const NOTES_PREFIX = 'notes_';
+        const NOTES_PREFIX = _getPrefixo() + 'notes_';
         let _notesSaveTimer = null;
         let _notesIndicatorTimer = null;
 
