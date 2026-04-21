@@ -1146,13 +1146,6 @@ def iniciar_transferencia_real(nome_canal, id_pasta_raiz, lista_ids, ordens=None
         daemon=True,
         name='gerenciador-download',
     )
-    _download_thread.start()
+    ['HLS] Thread do servidor iniciada.\')\n\nif __name__ == \'__main__\':\n    print("🚀 Servidor Python rodando! Abrindo interface...', "eel.start('index.html', size=(1280, 850))"]
 
-if _hls_disponivel:
-    t = _threading_hls.Thread(target=_iniciar_hls, daemon=True)
-    t.start()
-    print('[HLS] Thread do servidor iniciada.')
-
-if __name__ == '__main__':
-    print("🚀 Servidor Python rodando! Abrindo interface...")
-    eel.start('index.html', size=(1280, 850))
+['HLS] Thread do servidor iniciada.\')\n\nif __name__ == \'__main__\':\n    print("🚀 Servidor Python rodando! Abrindo interface...', "eel.start('index.html', size=(1280, 850))"]
