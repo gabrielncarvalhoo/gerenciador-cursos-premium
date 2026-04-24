@@ -59,7 +59,7 @@
                                 <span class="text-sm font-label uppercase tracking-widest text-on-surface">Selecionar Todos</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-xs text-on-surface-variant hover:text-on-surface transition-colors">
-                                <input type="checkbox" id="toggle-ocultar-baixados" onchange="toggleOcultarBaixados()" class="w-4 h-4 rounded border-outline-variant text-primary bg-surface-container-highest focus:ring-primary/50">
+                                <input type="checkbox" id="toggle-ocultar-baixados" onchange="toggleOcultarBaixados()" checked class="w-4 h-4 rounded border-outline-variant text-primary bg-surface-container-highest focus:ring-primary/50">
                                 <span class="font-label uppercase tracking-widest">Ocultar já baixados</span>
                             </label>
                         </div>
@@ -146,6 +146,17 @@
                         Limpar Nomes
                     </button>
                     <div id="limpar-nomes-status" class="text-xs font-mono text-on-surface-variant hidden"></div>
+                </div>
+
+                <div class="bg-surface-container rounded-xl p-6 flex flex-col gap-4 shadow-lg border border-outline-variant/10">
+                    <label class="block text-xs font-label uppercase tracking-widest text-primary">✏️ Renomeador de Curso</label>
+                    <p class="text-xs text-on-surface-variant">Renomeia todos os arquivos de uma pasta de curso para nome limpo (sem caracteres especiais). Atualiza o _ordem.json.</p>
+                    <input id="input-renomear-curso" type="text" placeholder="ID da pasta do curso (do Drive)" class="bg-surface-container-highest border border-outline-variant/20 rounded-lg px-4 py-2.5 text-sm text-on-surface font-mono placeholder-on-surface-variant/60 focus:outline-none focus:border-primary/50">
+                    <button onclick="renomearCursoDrive()" id="btn-renomear-curso" class="self-start flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.15)]">
+                        <span class="material-symbols-outlined text-[18px]">edit</span>
+                        Renomear Curso
+                    </button>
+                    <div id="renomear-curso-status" class="text-xs font-mono text-on-surface-variant hidden"></div>
                 </div>
 
                 <!-- M3: Verificação de sincronia Telegram ↔ Drive -->

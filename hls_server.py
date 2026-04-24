@@ -124,7 +124,6 @@ async def handle_stop(request):
 def criar_app():
     app = web.Application()
     app.router.add_get('/stream/{file_id}/playlist.m3u8', handle_playlist)
-    app.router.add_route('HEAD', '/stream/{file_id}/playlist.m3u8', handle_playlist)
     app.router.add_get('/stream/{file_id}/{segment}', handle_segment)
     app.router.add_get('/stop/{file_id}', handle_stop)
     app.router.add_options('/{path_info:.*}', handle_options)

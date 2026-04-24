@@ -33,7 +33,6 @@ def buscar_aulas_real(nome_canal, id_pasta_raiz=None):
 
             aulas_encontradas = []
             ordem_idx = 0
-            amostras_log = []
             async for msg in client.iter_messages(canal_alvo, reverse=True):
                 if (msg.video or msg.document) and not (msg.file and msg.file.ext == '.webp'):
                     texto_bruto = msg.text[:60].replace('\\n', ' ') if msg.text else (msg.file.name if msg.file and msg.file.name else f"Arquivo_{msg.id}")
@@ -52,19 +51,7 @@ def buscar_aulas_real(nome_canal, id_pasta_raiz=None):
                         'nome_arquivo_limpo': nome_limpo,
                         'ja_no_drive': ja_no_drive,
                     })
-                    if len(amostras_log) < 3:
-                        amostras_log.append((nome_arquivo, nome_limpo, chave, ja_no_drive))
                     ordem_idx += 1
-            try:
-                total_match = sum(1 for a in aulas_encontradas if a['ja_no_drive'])
-                eel.addLogVisual(f"🔍 [SYNC] Telegram total={len(aulas_encontradas)} match_drive={total_match} set_drive_size={len(nomes_no_drive)}")()
-                for raw, san, nrm, ok in amostras_log:
-                    eel.addLogVisual(f"🔍 [SYNC-TG] raw='{raw}' | san='{san}' | nrm='{nrm}' | match={ok}")()
-                if nomes_no_drive and amostras_log:
-                    amostra_drive = list(nomes_no_drive)[:3]
-                    eel.addLogVisual(f"🔍 [SYNC] Amostra do set Drive: {amostra_drive}")()
-            except Exception:
-                pass
             return {"sucesso": True, "aulas": aulas_encontradas}
 
     try:

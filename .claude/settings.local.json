@@ -29,7 +29,12 @@
       "Bash(xxd -l 200 /mnt/c/gerenciador-cursos/web/js/state.js)",
       "Bash(echo \"Exit: $?\")",
       "Bash(xxd /mnt/c/gerenciador-cursos/web/js/library.js)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(sed -i '/🔍 \\\\[SYNC\\\\]/d' drive.py)",
+      "Bash(sed -i '/🔍 \\\\[SYNC-DRIVE\\\\]/d' drive.py)",
+      "Bash(sed -i '/🔍 \\\\[SYNC\\\\]/d' telegram.py)",
+      "Bash(sed -i '/🔍 \\\\[SYNC-TG\\\\]/d' telegram.py)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }

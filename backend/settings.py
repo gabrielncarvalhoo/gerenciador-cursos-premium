@@ -5,7 +5,7 @@ from googleapiclient.discovery import build
 
 from .config import PASTA_TEMP, SCOPES
 from .utils import _garantir_pasta_temp, _extrair_numero_ordem
-from .drive import _ler_ordem_drive, _salvar_ordem_drive
+from .drive import _ler_ordem_drive, _salvar_ordem_drive, renomear_curso_drive as _renomear_impl
 from .library import _rodar_com_timeout
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 
@@ -60,3 +60,7 @@ def reindexar_cursos_drive(id_pasta_raiz):
         return {"erro": "timeout", "mensagem": "A reindexação excedeu 60s. Tente de novo."}
     except Exception as e:
         return {"erro": str(e)}
+
+@eel.expose
+def renomear_curso_drive(id_pasta_curso):
+    return _renomear_impl(id_pasta_curso)

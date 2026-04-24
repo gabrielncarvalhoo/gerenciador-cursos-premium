@@ -219,3 +219,32 @@ async function limparNomesDrive() {
         btn.disabled = false; btn.classList.remove('opacity-60');
     }
 }
+
+async function renomearCursoDrive() {
+    const idPastaCurso = document.getElementById('input-renomear-curso').value.trim();
+    const status = document.getElementById('renomear-curso-status');
+    const btn = document.getElementById('btn-renomear-curso');
+
+    if (!idPastaCurso) {
+        status.classList.remove('hidden');
+        status.innerText = '⚠️ Cole o ID da pasta do curso.';
+        return;
+    }
+
+    btn.disabled = true; btn.classList.add('opacity-60');
+    status.classList.remove('hidden');
+    status.innerText = '✏️ Renomeando arquivos...';
+
+    try {
+        const resp = await eel.renomear_curso_drive(idPastaCurso)();
+        if (resp.erro) {
+            status.innerText = `❌ ${resp.erro}`;
+        } else {
+            status.innerText = `✅ ${resp.renomeados}/${resp.total} arquivo(s) renomeado(s).`;
+        }
+    } catch (e) {
+        status.innerText = '❌ Falha ao conectar com o Python.';
+    } finally {
+        btn.disabled = false; btn.classList.remove('opacity-60');
+    }
+}

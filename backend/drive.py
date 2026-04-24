@@ -74,48 +74,29 @@ def _listar_nomes_no_drive(id_pasta_raiz, nome_canal):
     )
     res = drive_service.files().list(q=query_pasta, fields='files(id, name)').execute()
     pastas = res.get('files', [])
-    try:
-        eel.addLogVisual(f"🔍 [SYNC] Buscando pasta Drive: name='{nome_canal}' → {len(pastas)} resultado(s)")()
-    except Exception:
-        pass
     if not pastas:
-        try:
-            res_all = drive_service.files().list(
-                q=f"'{id_pasta_raiz}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
-                fields='files(name)'
-            ).execute()
-            nomes_pastas = [p['name'] for p in res_all.get('files', [])][:10]
-            eel.addLogVisual(f"🔍 [SYNC] Pastas existentes na raiz (primeiras 10): {nomes_pastas}")()
-        except Exception:
-            pass
         return set()
+
     id_pasta_curso = pastas[0]['id']
 
-    arq_res = drive_service.files().list(
-        q=f"'{id_pasta_curso}' in parents and trashed=false",
-        fields='files(name)'
-    ).execute()
-    todos_arquivos = arq_res.get('files', [])
-    arquivos_validos = [a for a in todos_arquivos if not _limpar_markdown(a['name']).startswith('_')]
-    arquivos_filtrados = [a for a in todos_arquivos if _limpar_markdown(a['name']).startswith('_')]
+    arquivos_all = []
+    page_token = None
+    while True:
+        res = drive_service.files().list(
+            q=f"'{id_pasta_curso}' in parents and trashed=false",
+            fields='files(name), nextPageToken',
+            pageSize=500, pageToken=page_token
+        ).execute()
+        arquivos_all.extend(res.get('files', []))
+        page_token = res.get('nextPageToken')
+        if not page_token:
+            break
+    arquivos_validos = [a for a in arquivos_all if not _limpar_markdown(a['name']).startswith('_')]
 
-    nomes_set = {
+    return {
         _normalizar_nome(_sanitizar_nome_arquivo(a['name']))
         for a in arquivos_validos
     }
-    try:
-        eel.addLogVisual(f"🔍 [SYNC] Drive total={len(todos_arquivos)} válidos={len(arquivos_validos)} filtrados(prefixo _)={len(arquivos_filtrados)}")()
-        amostra = arquivos_validos[:3]
-        for a in amostra:
-            raw = a['name']
-            san = _sanitizar_nome_arquivo(raw)
-            nrm = _normalizar_nome(san)
-            eel.addLogVisual(f"🔍 [SYNC-DRIVE] raw='{raw}' | san='{san}' | nrm='{nrm}'")()
-        if arquivos_filtrados:
-            eel.addLogVisual(f"🔍 [SYNC] Filtrados: {[a['name'] for a in arquivos_filtrados[:5]]}")()
-    except Exception:
-        pass
-    return nomes_set
 
 def _ler_ordem_drive(drive_service, id_pasta_curso):
     query = f"'{id_pasta_curso}' in parents and name='{ORDEM_FILENAME}' and trashed=false"
@@ -265,3 +246,53 @@ def sincronizar_capas(id_pasta_raiz, nomes_cursos):
             sincronizados += 1
 
     return {'sincronizados': sincronizados, 'total': len(nomes_cursos)}
+
+
+def renomear_curso_drive(id_pasta_curso):
+    """Renomeia todos arquivos de uma pasta de curso para nome limpo.
+       Atualiza _ordem.json. Retorna {renomeados, erros, total}."""
+    def tarefa():
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        drive_service = build('drive', 'v3', credentials=creds)
+
+        query = f"'{id_pasta_curso}' in parents and trashed=false"
+        arquivos = drive_service.files().list(
+            q=query, fields='files(id, name)'
+        ).execute().get('files', [])
+
+        renomeados = 0
+        erros = []
+        mapa_antigo_novo = {}
+
+        for arq in arquivos:
+            nome_original = arq['name']
+            if nome_original.startswith('_'):
+                continue
+            nome_limpo = _sanitizar_nome_arquivo(nome_original)
+            if nome_limpo != nome_original:
+                try:
+                    drive_service.files().update(
+                        fileId=arq['id'],
+                        body={'name': nome_limpo}
+                    ).execute()
+                    mapa_antigo_novo[nome_original] = nome_limpo
+                    renomeados += 1
+                except Exception as e:
+                    erros.append(f"{nome_original} -> {nome_limpo}: {e}")
+
+        if mapa_antigo_novo:
+            ordem_data, ordem_file_id = _ler_ordem_drive(drive_service, id_pasta_curso)
+            if ordem_data and ordem_data.get('arquivos'):
+                for entry in ordem_data['arquivos']:
+                    if entry['nome'] in mapa_antigo_novo:
+                        entry['nome'] = mapa_antigo_novo[entry['nome']]
+                _salvar_ordem_drive(drive_service, id_pasta_curso, ordem_data, ordem_file_id)
+
+        return {'renomeados': renomeados, 'erros': erros, 'total': len(arquivos)}
+
+    try:
+        from backend.library import _rodar_com_timeout
+        resultado = _rodar_com_timeout(tarefa, timeout=60)
+        return {'sucesso': True, **resultado}
+    except Exception as e:
+        return {'erro': str(e)}

@@ -18,14 +18,34 @@ def carregar_cursos_drive(id_pasta_raiz):
         drive_service = build('drive', 'v3', credentials=creds)
 
         query = f"'{id_pasta_raiz}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
-        resultados = drive_service.files().list(q=query, fields="files(id, name)").execute()
-        pastas = [p for p in resultados.get('files', []) if not p['name'].startswith('_')]
+        pastas_all = []
+        page_token = None
+        while True:
+            res = drive_service.files().list(
+                q=query, fields='files(id, name), nextPageToken',
+                pageSize=500, pageToken=page_token
+            ).execute()
+            pastas_all.extend(res.get('files', []))
+            page_token = res.get('nextPageToken')
+            if not page_token:
+                break
+        pastas = [p for p in pastas_all if not p['name'].startswith('_')]
 
         cursos = []
         for pasta in pastas:
             query_aulas = f"'{pasta['id']}' in parents and trashed=false"
-            aulas_res = drive_service.files().list(q=query_aulas, fields="files(id, name)").execute()
-            aulas_visiveis = [a for a in aulas_res.get('files', []) if not _limpar_markdown(a['name']).startswith('_')]
+            aulas_all = []
+            page_token = None
+            while True:
+                res = drive_service.files().list(
+                    q=query_aulas, fields='files(id, name), nextPageToken',
+                    pageSize=500, pageToken=page_token
+                ).execute()
+                aulas_all.extend(res.get('files', []))
+                page_token = res.get('nextPageToken')
+                if not page_token:
+                    break
+            aulas_visiveis = [a for a in aulas_all if not _limpar_markdown(a['name']).startswith('_')]
             cursos.append({
                 'id': pasta['id'],
                 'title': _limpar_markdown(pasta['name']),
@@ -50,8 +70,17 @@ def carregar_aulas_curso(id_pasta_curso):
         drive_service = build('drive', 'v3', credentials=creds)
 
         query = f"'{id_pasta_curso}' in parents and trashed=false"
-        resultados = drive_service.files().list(q=query, fields="files(id, name, mimeType)").execute()
-        arquivos = resultados.get('files', [])
+        arquivos = []
+        page_token = None
+        while True:
+            res = drive_service.files().list(
+                q=query, fields='files(id, name, mimeType), nextPageToken',
+                pageSize=500, pageToken=page_token
+            ).execute()
+            arquivos.extend(res.get('files', []))
+            page_token = res.get('nextPageToken')
+            if not page_token:
+                break
         ordem_data, _ = _ler_ordem_drive(drive_service, id_pasta_curso)
         return arquivos, ordem_data
 
@@ -73,7 +102,7 @@ def carregar_aulas_curso(id_pasta_curso):
         for i, arq in enumerate(arquivos):
             aulas.append({
                 'id': arq['id'],
-                'num': str(i + 1).zfill(2),
+                'num': str(i + 1).zfill(3),
                 'title': _limpar_markdown(arq['name']),
                 'type': 'video' if 'video' in arq['mimeType'] else 'document',
                 'link': f"https://drive.google.com/file/d/{arq['id']}/preview"
