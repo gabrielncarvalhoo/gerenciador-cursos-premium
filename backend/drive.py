@@ -8,7 +8,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseUpload
 
 from .config import SCOPES, DRIVE_CHUNKSIZE, ORDEM_FILENAME, PASTA_CACHE_FOTOS
-from .utils import _normalizar_nome, _sanitizar_nome_arquivo, _slug_canal
+from .utils import _normalizar_nome, _sanitizar_nome_arquivo, _slug_canal, _limpar_markdown
 
 CAPAS_FOLDER_NAME = '_capas'
 
@@ -74,7 +74,20 @@ def _listar_nomes_no_drive(id_pasta_raiz, nome_canal):
     )
     res = drive_service.files().list(q=query_pasta, fields='files(id, name)').execute()
     pastas = res.get('files', [])
+    try:
+        eel.addLogVisual(f"🔍 [SYNC] Buscando pasta Drive: name='{nome_canal}' → {len(pastas)} resultado(s)")()
+    except Exception:
+        pass
     if not pastas:
+        try:
+            res_all = drive_service.files().list(
+                q=f"'{id_pasta_raiz}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
+                fields='files(name)'
+            ).execute()
+            nomes_pastas = [p['name'] for p in res_all.get('files', [])][:10]
+            eel.addLogVisual(f"🔍 [SYNC] Pastas existentes na raiz (primeiras 10): {nomes_pastas}")()
+        except Exception:
+            pass
         return set()
     id_pasta_curso = pastas[0]['id']
 
@@ -82,11 +95,27 @@ def _listar_nomes_no_drive(id_pasta_raiz, nome_canal):
         q=f"'{id_pasta_curso}' in parents and trashed=false",
         fields='files(name)'
     ).execute()
-    return {
+    todos_arquivos = arq_res.get('files', [])
+    arquivos_validos = [a for a in todos_arquivos if not _limpar_markdown(a['name']).startswith('_')]
+    arquivos_filtrados = [a for a in todos_arquivos if _limpar_markdown(a['name']).startswith('_')]
+
+    nomes_set = {
         _normalizar_nome(_sanitizar_nome_arquivo(a['name']))
-        for a in arq_res.get('files', [])
-        if not a['name'].startswith('_')
+        for a in arquivos_validos
     }
+    try:
+        eel.addLogVisual(f"🔍 [SYNC] Drive total={len(todos_arquivos)} válidos={len(arquivos_validos)} filtrados(prefixo _)={len(arquivos_filtrados)}")()
+        amostra = arquivos_validos[:3]
+        for a in amostra:
+            raw = a['name']
+            san = _sanitizar_nome_arquivo(raw)
+            nrm = _normalizar_nome(san)
+            eel.addLogVisual(f"🔍 [SYNC-DRIVE] raw='{raw}' | san='{san}' | nrm='{nrm}'")()
+        if arquivos_filtrados:
+            eel.addLogVisual(f"🔍 [SYNC] Filtrados: {[a['name'] for a in arquivos_filtrados[:5]]}")()
+    except Exception:
+        pass
+    return nomes_set
 
 def _ler_ordem_drive(drive_service, id_pasta_curso):
     query = f"'{id_pasta_curso}' in parents and name='{ORDEM_FILENAME}' and trashed=false"
@@ -146,6 +175,60 @@ def _upload_sync(drive_service, caminho_local, nome_original, id_pasta_destino):
         return {'nome': nome_original, 'file_id': novo_file_id}
     except Exception as e:
         return {'erro': str(e), 'nome': nome_original, 'caminho': caminho_local}
+
+
+@eel.expose
+def limpar_nomes_drive(id_pasta_raiz):
+    """Renomeia arquivos no Drive que contêm **, __ ou * no nome, removendo a formatação markdown."""
+    def tarefa():
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        drive_service = build('drive', 'v3', credentials=creds)
+
+        # Lista todas as pastas de curso na raiz
+        query_pastas = f"'{id_pasta_raiz}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        pastas = drive_service.files().list(q=query_pastas, fields='files(id, name)').execute().get('files', [])
+
+        total_renomeados = 0
+        erros = []
+
+        for pasta in pastas:
+            id_pasta_curso = pasta['id']
+            query_arq = f"'{id_pasta_curso}' in parents and trashed=false"
+            arquivos = drive_service.files().list(q=query_arq, fields='files(id, name)').execute().get('files', [])
+
+            for arq in arquivos:
+                nome_original = arq['name']
+                nome_limpo = _limpar_markdown(nome_original)
+                # Só renomeia se realmente mudou
+                if nome_limpo != nome_original:
+                    try:
+                        drive_service.files().update(
+                            fileId=arq['id'],
+                            body={'name': nome_limpo}
+                        ).execute()
+                        total_renomeados += 1
+                    except Exception as e:
+                        erros.append(f"{nome_original} -> {nome_limpo}: {e}")
+
+            # Recria _ordem.json com nomes limpos
+            ordem_data, ordem_file_id = _ler_ordem_drive(drive_service, id_pasta_curso)
+            if ordem_data and ordem_data.get('arquivos'):
+                # Atualiza os nomes no _ordem.json
+                arquivos_atualizados = []
+                for entrada in ordem_data['arquivos']:
+                    nome_limpo = _limpar_markdown(entrada['nome'])
+                    arquivos_atualizados.append({'nome': nome_limpo, 'ordem': entrada['ordem']})
+                ordem_data['arquivos'] = arquivos_atualizados
+                _salvar_ordem_drive(drive_service, id_pasta_curso, ordem_data, ordem_file_id)
+
+        return {'renomeados': total_renomeados, 'erros': erros, 'pastas_processadas': len(pastas)}
+
+    try:
+        from backend.library import _rodar_com_timeout
+        resultado = _rodar_com_timeout(tarefa, timeout=120)
+        return {'sucesso': True, **resultado}
+    except Exception as e:
+        return {'erro': str(e)}
 
 
 @eel.expose

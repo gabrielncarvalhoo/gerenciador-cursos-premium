@@ -115,14 +115,36 @@ function _mostrarPlayerFallback(mensagem) {
     const fallbackMsg = document.getElementById('player-fallback-msg');
     const fallbackLink = document.getElementById('player-fallback-link');
     const card = document.getElementById('video-card');
+    const processing = document.getElementById('player-processing');
 
     placeholder.classList.add('hidden');
     iframe.classList.add('hidden');
     iframe.src = "";
     if (card) card.classList.add('hidden');
+    if (processing) processing.classList.add('hidden');
     fallback.classList.remove('hidden');
     fallbackMsg.innerText = mensagem || 'Tente abri-lo direto no Google Drive.';
     fallbackLink.href = (_playerInfo && _playerInfo.drive_url) || '#';
+}
+
+function _mostrarPlayerProcessando() {
+    clearTimeout(_playerTentativaTimer);
+    const placeholder = document.getElementById('player-placeholder');
+    const iframe = document.getElementById('video-iframe');
+    const fallback = document.getElementById('player-fallback');
+    const card = document.getElementById('video-card');
+    const video = document.getElementById('video-player');
+    const processing = document.getElementById('player-processing');
+    const link = document.getElementById('player-processing-link');
+
+    placeholder.classList.add('hidden');
+    iframe.classList.add('hidden');
+    iframe.src = "";
+    fallback.classList.add('hidden');
+    if (card) card.classList.add('hidden');
+    video.classList.add('hidden');
+    processing.classList.remove('hidden');
+    link.href = (_playerInfo && _playerInfo.drive_url) || '#';
 }
 
 function playHLS(fileId, driveUrl) {
@@ -193,12 +215,14 @@ function _tentarMetodoEmbed(url, tentativaAtual) {
     const placeholder = document.getElementById('player-placeholder');
     const fallback = document.getElementById('player-fallback');
     const card = document.getElementById('video-card');
+    const processing = document.getElementById('player-processing');
 
     // Visibilidade SÍNCRONA — não esperar onload.
     placeholder.classList.add('hidden');
     fallback.classList.add('hidden');
     video.classList.add('hidden');
     if (card) card.classList.add('hidden');
+    if (processing) processing.classList.add('hidden');
     iframe.classList.remove('hidden');
     iframe.src = url;
 
@@ -284,6 +308,7 @@ async function playLesson(lessonId, title) {
     // Reset estado do player
     document.getElementById('player-placeholder').classList.remove('hidden');
     document.getElementById('player-fallback').classList.add('hidden');
+    document.getElementById('player-processing').classList.add('hidden');
     document.getElementById('video-iframe').classList.add('hidden');
     document.getElementById('video-iframe').src = "";
     document.getElementById('video-card').classList.add('hidden');
@@ -299,24 +324,22 @@ async function playLesson(lessonId, title) {
         is_public: null
     };
 
-    // Backend em paralelo — is_public + URLs oficiais
+    const lessonAtivoId = lessonId;
+    // Backend em paralelo — is_public + is_processing + URLs oficiais
     eel.obter_link_aula(lessonId)().then(info => {
         if (!info || info.erro) return;
+        // Usuário já pode ter clicado em outra aula — ignora resposta tardia.
+        if (currentLessonId !== lessonAtivoId) return;
         _playerInfo = info;
+        if (info.is_processing) {
+            _mostrarPlayerProcessando();
+            return;
+        }
         if (info.is_public === false) {
             document.getElementById('player-warn').classList.remove('hidden');
         }
     }).catch(() => {});
 
-    // Drive bloqueia embed de vídeo via frame-ancestors.
-    // Para vídeo, mostrar card com botão "Abrir no Drive" + "Copiar link".
-    if (_ehVideo(lessonId, title)) {
-        _mostrarVideoCard(lessonId, title, driveViewUrl);
-        renderPlayerUI();
-        return;
-    }
-
-    // Documentos (PDF etc) — iframe ainda funciona
     _tentarMetodoEmbed(previewUrlBase, 1);
     renderPlayerUI();
 }

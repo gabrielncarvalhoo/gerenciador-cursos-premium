@@ -130,10 +130,8 @@ async function renderLibrary(forcarRefresh = false) {
     // M1: busca fotos dos canais do Telegram em background — não bloqueia a grade.
     // Usa a imagem fallback até a resposta chegar; trocamos uma a uma por data-course-title.
     carregarFotosCanais(cursos.map(c => c.title), rootId);
+}
 
-// M1: baixa fotos de perfil dos canais do Telegram e troca o <img> de cada card.
-// Chamada é fire-and-forget: se der timeout ou erro, mantemos o fallback visual.
-// Se id_pasta_raiz fornecido, o backend também tenta baixar do Drive se não achar local.
 async function carregarFotosCanais(titulos, id_pasta_raiz = null) {
     if (!titulos || titulos.length === 0) return;
     try {
@@ -249,6 +247,8 @@ async function openCourse(courseId, courseTitle) {
     document.getElementById('video-iframe').src = "";
     document.getElementById('player-placeholder').classList.remove('hidden');
     document.getElementById('player-fallback').classList.add('hidden');
+    const procEl = document.getElementById('player-processing');
+    if (procEl) procEl.classList.add('hidden');
     document.getElementById('player-warn').classList.add('hidden');
     document.getElementById('video-title').innerText = "Selecione uma aula na lista...";
 

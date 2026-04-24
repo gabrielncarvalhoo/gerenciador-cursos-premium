@@ -138,6 +138,16 @@
                     <div id="reindex-status" class="text-xs font-mono text-on-surface-variant hidden"></div>
                 </div>
 
+                <div class="bg-surface-container rounded-xl p-6 flex flex-col gap-4 shadow-lg border border-outline-variant/10">
+                    <label class="block text-xs font-label uppercase tracking-widest text-primary">🧹 Limpar formatação dos nomes no Drive</label>
+                    <p class="text-xs text-on-surface-variant">Remove **, __ e * dos nomes de arquivos que foram salvos com formatação markdown. Também recria o _ordem.json com os nomes limpos.</p>
+                    <button onclick="limparNomesDrive()" id="btn-limpar-nomes" class="self-start flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.15)]">
+                        <span class="material-symbols-outlined text-[18px]">cleaning_services</span>
+                        Limpar Nomes
+                    </button>
+                    <div id="limpar-nomes-status" class="text-xs font-mono text-on-surface-variant hidden"></div>
+                </div>
+
                 <!-- M3: Verificação de sincronia Telegram ↔ Drive -->
                 <div class="bg-surface-container rounded-xl p-6 flex flex-col gap-4 shadow-lg border border-outline-variant/10">
                     <label class="block text-xs font-label uppercase tracking-widest text-primary">Verificar Sincronia</label>
@@ -197,6 +207,16 @@
                         <h2 class="font-headline text-xl font-bold text-on-surface mb-2">Não consegui reproduzir este arquivo</h2>
                         <p id="player-fallback-msg" class="text-sm text-on-surface-variant mb-6 max-w-lg">Tente abri-lo direto no Google Drive.</p>
                         <a id="player-fallback-link" href="#" target="_blank" rel="noopener" class="px-6 py-3 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.2)] flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[18px]">open_in_new</span>
+                            Abrir no Google Drive
+                        </a>
+                    </div>
+
+                    <div id="player-processing" class="hidden absolute inset-0 bg-surface-container flex flex-col items-center justify-center z-30 px-6 text-center">
+                        <span class="material-symbols-outlined text-6xl text-primary/80 mb-4 animate-pulse">hourglass_top</span>
+                        <h2 class="font-headline text-xl font-bold text-on-surface mb-2">⏳ Vídeo ainda processando</h2>
+                        <p class="text-sm text-on-surface-variant mb-6 max-w-lg">Este vídeo ainda está sendo processado pelo Google Drive. Tente novamente em alguns minutos ou abra diretamente no Drive.</p>
+                        <a id="player-processing-link" href="#" target="_blank" rel="noopener" class="px-6 py-3 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.2)] flex items-center gap-2">
                             <span class="material-symbols-outlined text-[18px]">open_in_new</span>
                             Abrir no Google Drive
                         </a>

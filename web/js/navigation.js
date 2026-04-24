@@ -188,3 +188,34 @@ function baixarTodosFaltantes() {
     // Dispara a busca automaticamente — ao renderizar, a pré-seleção é aplicada.
     buscarAulasBotao();
 }
+
+async function limparNomesDrive() {
+    const rootId = document.getElementById('input-drive').value || localStorage.getItem('rootDriveRootId');
+    const status = document.getElementById('limpar-nomes-status');
+    const btn = document.getElementById('btn-limpar-nomes');
+
+    if (!rootId) {
+        status.classList.remove('hidden');
+        status.innerText = '⚠️ Defina o ID da pasta raiz em Download Center primeiro.';
+        return;
+    }
+
+    btn.disabled = true; btn.classList.add('opacity-60');
+    status.classList.remove('hidden');
+    status.innerText = '🧹 Limpando formatação dos nomes...';
+
+    try {
+        const resp = await eel.limpar_nomes_drive(rootId)();
+        if (resp.erro) {
+            status.innerText = `❌ ${resp.erro}`;
+        } else {
+            const renomeados = resp.renomeados || 0;
+            const pastas = resp.pastas_processadas || 0;
+            status.innerText = `✅ ${renomeados} arquivo(s) renomeado(s) em ${pastas} pasta(s).`;
+        }
+    } catch (e) {
+        status.innerText = '❌ Falha ao conectar com o Python.';
+    } finally {
+        btn.disabled = false; btn.classList.remove('opacity-60');
+    }
+}

@@ -18,7 +18,18 @@
       "Read(//usr/bin/**)",
       "Bash(apt list *)",
       "Bash(sudo apt *)",
-      "Bash(unzip -l dist/GerenciadorCursos/_internal/base_library.zip)"
+      "Bash(unzip -l dist/GerenciadorCursos/_internal/base_library.zip)",
+      "Skill(update-config)",
+      "Bash(head -c -3 /mnt/c/gerenciador-cursos/web/js/library.js)",
+      "Bash(mv /tmp/library_fixed.js /mnt/c/gerenciador-cursos/web/js/library.js)",
+      "Bash(awk '{print NR \": \" $0}' /mnt/c/gerenciador-cursos/web/js/library.js)",
+      "Bash(xxd)",
+      "Bash(truncate -s -2 /mnt/c/gerenciador-cursos/web/js/library.js)",
+      "Bash(awk *)",
+      "Bash(xxd -l 200 /mnt/c/gerenciador-cursos/web/js/state.js)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(xxd /mnt/c/gerenciador-cursos/web/js/library.js)",
+      "Bash(python *)"
     ]
   }
 }

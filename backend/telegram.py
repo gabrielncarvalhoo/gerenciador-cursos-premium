@@ -6,7 +6,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from .config import API_ID, API_HASH, SCOPES, PASTA_CACHE_FOTOS
-from .utils import _normalizar_nome, _slug_canal, _sanitizar_nome_arquivo
+from .utils import _normalizar_nome, _slug_canal, _sanitizar_nome_arquivo, _limpar_markdown
 from .drive import _listar_nomes_no_drive, _garantir_pasta_capas, _upload_capa_drive
 
 @eel.expose
@@ -33,12 +33,16 @@ def buscar_aulas_real(nome_canal, id_pasta_raiz=None):
 
             aulas_encontradas = []
             ordem_idx = 0
+            amostras_log = []
             async for msg in client.iter_messages(canal_alvo, reverse=True):
                 if (msg.video or msg.document) and not (msg.file and msg.file.ext == '.webp'):
-                    txt = msg.text[:60].replace('\\n', ' ') if msg.text else (msg.file.name if msg.file and msg.file.name else f"Arquivo_{msg.id}")
+                    texto_bruto = msg.text[:60].replace('\\n', ' ') if msg.text else (msg.file.name if msg.file and msg.file.name else f"Arquivo_{msg.id}")
+                    txt = _limpar_markdown(texto_bruto)
                     tamanho = f"{msg.file.size / (1024 * 1024):.1f} MB" if msg.file and msg.file.size else "Desconhecido"
                     nome_arquivo = msg.file.name if (msg.file and msg.file.name) else f"Aula_{msg.id}.mp4"
                     nome_limpo = _sanitizar_nome_arquivo(nome_arquivo)
+                    chave = _normalizar_nome(nome_limpo)
+                    ja_no_drive = chave in nomes_no_drive
                     aulas_encontradas.append({
                         'id': msg.id,
                         'nome': txt,
@@ -46,9 +50,21 @@ def buscar_aulas_real(nome_canal, id_pasta_raiz=None):
                         'ordem': ordem_idx,
                         'nome_arquivo': nome_arquivo,
                         'nome_arquivo_limpo': nome_limpo,
-                        'ja_no_drive': _normalizar_nome(nome_limpo) in nomes_no_drive,
+                        'ja_no_drive': ja_no_drive,
                     })
+                    if len(amostras_log) < 3:
+                        amostras_log.append((nome_arquivo, nome_limpo, chave, ja_no_drive))
                     ordem_idx += 1
+            try:
+                total_match = sum(1 for a in aulas_encontradas if a['ja_no_drive'])
+                eel.addLogVisual(f"🔍 [SYNC] Telegram total={len(aulas_encontradas)} match_drive={total_match} set_drive_size={len(nomes_no_drive)}")()
+                for raw, san, nrm, ok in amostras_log:
+                    eel.addLogVisual(f"🔍 [SYNC-TG] raw='{raw}' | san='{san}' | nrm='{nrm}' | match={ok}")()
+                if nomes_no_drive and amostras_log:
+                    amostra_drive = list(nomes_no_drive)[:3]
+                    eel.addLogVisual(f"🔍 [SYNC] Amostra do set Drive: {amostra_drive}")()
+            except Exception:
+                pass
             return {"sucesso": True, "aulas": aulas_encontradas}
 
     try:
@@ -92,7 +108,7 @@ def verificar_sincronia(nome_canal, id_pasta_raiz):
                 fields='files(id, name)'
             ).execute()
             for a in arq_res.get('files', []):
-                if a['name'].startswith('_'):
+                if _limpar_markdown(a['name']).startswith('_'):
                     continue
                 if _normalizar_nome(a['name']) not in nomes_tg:
                     extra.append({'nome': a['name']})
