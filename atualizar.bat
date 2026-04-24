@@ -14,19 +14,27 @@ IF "%ORIGEM%"=="" (
 )
 
 SET DESTINO=%~dp0
+SET EXCLUIR=%DESTINO%excluir.txt
 
-echo Copiando arquivos atualizados...
+REM Criar lista de arquivos que cada PC tem sua propria versao
+echo sessao_estudos.session> "%EXCLUIR%"
 
-REM Copia executavel e DLLs (exceto arquivos de credenciais)
-xcopy /Y /I "%ORIGEM%\*.exe" "%DESTINO%"
-xcopy /Y /I /E "%ORIGEM%\_internal\*" "%DESTINO%_internal\"
+echo Copiando executavel e _internal (exceto arquivos unicos do PC)...
+xcopy /Y /I /E /EXCLUDE:"%EXCLUIR%" "%ORIGEM%\*.exe" "%DESTINO%"
+xcopy /Y /I /E /EXCLUDE:"%EXCLUIR%" "%ORIGEM%\_internal\*" "%DESTINO%_internal\"
 
-echo.
-echo ATENCAO: Nao foram sobrescritos:
-echo  - token.json (credenciais Google)
-echo  - credentials.json (credenciais Google)
-echo  - sessao_estudos.session (sessao Telegram)
-echo  - cache_fotos\ (capas dos cursos)
+REM Copiar tokens (sobrescreve para permitir atualizacao de acesso)
+if exist "%ORIGEM%\token.json" (
+    copy /Y "%ORIGEM%\token.json" "%DESTINO%token.json"
+)
+if exist "%ORIGEM%\credentials.json" (
+    copy /Y "%ORIGEM%\credentials.json" "%DESTINO%credentials.json"
+)
+
+REM Limpar arquivo temporario
+del "%EXCLUIR%" 2>nul
+
 echo.
 echo Atualizacao concluida!
+echo Protegido: sessao_estudos.session (sessao Telegram unica deste PC)
 pause
