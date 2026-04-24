@@ -11,7 +11,14 @@
       "Bash(node --check /tmp/script.js)",
       "Bash(sed -n '283,1569p' /mnt/c/Users/gabri/Desktop/gerenciador-cursos/web/index.html)",
       "Bash(node --check /tmp/script2.js)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(.venv/bin/python *)",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Read(//usr/bin/**)",
+      "Bash(apt list *)",
+      "Bash(sudo apt *)",
+      "Bash(unzip -l dist/GerenciadorCursos/_internal/base_library.zip)"
     ]
   }
 }

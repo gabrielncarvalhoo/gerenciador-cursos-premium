@@ -123,17 +123,21 @@ async function renderLibrary(forcarRefresh = false) {
     const searchBox = document.getElementById('search-courses');
     if (searchBox && searchBox.value) filtrarCursos();
 
+    // Sincroniza capas que faltam localmente buscando no Drive
+    try {
+        await eel.sincronizar_capas(rootId, cursos.map(c => c.title))();
+    } catch(e) {}
     // M1: busca fotos dos canais do Telegram em background — não bloqueia a grade.
     // Usa a imagem fallback até a resposta chegar; trocamos uma a uma por data-course-title.
-    carregarFotosCanais(cursos.map(c => c.title));
-}
+    carregarFotosCanais(cursos.map(c => c.title), rootId);
 
 // M1: baixa fotos de perfil dos canais do Telegram e troca o <img> de cada card.
 // Chamada é fire-and-forget: se der timeout ou erro, mantemos o fallback visual.
-async function carregarFotosCanais(titulos) {
+// Se id_pasta_raiz fornecido, o backend também tenta baixar do Drive se não achar local.
+async function carregarFotosCanais(titulos, id_pasta_raiz = null) {
     if (!titulos || titulos.length === 0) return;
     try {
-        const mapa = await eel.obter_fotos_canais(titulos)();
+        const mapa = await eel.obter_fotos_canais(titulos, id_pasta_raiz)();
         if (!mapa) return;
         // Iteração por atributo — robusto a títulos com aspas/especiais que
         // quebrariam um querySelector interpolado.

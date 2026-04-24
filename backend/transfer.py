@@ -12,7 +12,7 @@ from .config import (
     CONN_CHECK_INTERVAL, MAX_RETRIES_ARQUIVO, FILA_MAX, parar_evento
 )
 import backend.config as config
-from .utils import _garantir_pasta_temp
+from .utils import _garantir_pasta_temp, _sanitizar_nome_arquivo
 from .drive import _upload_sync, _ler_ordem_drive, _salvar_ordem_drive, _mesclar_ordem
 
 @eel.expose
@@ -97,11 +97,12 @@ async def _produtor(client, mensagens, ordens, total_bytes, total, fila):
             break
 
         nome_original = msg.file.name if (msg.file and msg.file.name) else f"Aula_{msg.id}.mp4"
+        nome_limpo = _sanitizar_nome_arquivo(nome_original)
         ordem_msg = ordens.get(str(msg.id), msg.id)
         bytes_arquivo = msg.file.size if (msg.file and msg.file.size) else 0
 
         pasta_temp = _garantir_pasta_temp()
-        caminho_temp = os.path.join(pasta_temp, nome_original)
+        caminho_temp = os.path.join(pasta_temp, nome_limpo)
 
         sucesso = False
         for tentativa in range(1, MAX_RETRIES_ARQUIVO + 1):
@@ -171,7 +172,7 @@ async def _produtor(client, mensagens, ordens, total_bytes, total, fila):
                 except Exception:
                     pass
 
-                await fila.put((caminho_local, nome_original, int(ordem_msg)))
+                await fila.put((caminho_local, nome_limpo, int(ordem_msg)))
                 sucesso = True
                 break
 

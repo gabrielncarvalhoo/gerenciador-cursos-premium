@@ -6,8 +6,8 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from .config import API_ID, API_HASH, SCOPES, PASTA_CACHE_FOTOS
-from .utils import _normalizar_nome, _slug_canal
-from .drive import _listar_nomes_no_drive
+from .utils import _normalizar_nome, _slug_canal, _sanitizar_nome_arquivo
+from .drive import _listar_nomes_no_drive, _garantir_pasta_capas, _upload_capa_drive
 
 @eel.expose
 def buscar_aulas_real(nome_canal, id_pasta_raiz=None):
@@ -38,13 +38,15 @@ def buscar_aulas_real(nome_canal, id_pasta_raiz=None):
                     txt = msg.text[:60].replace('\\n', ' ') if msg.text else (msg.file.name if msg.file and msg.file.name else f"Arquivo_{msg.id}")
                     tamanho = f"{msg.file.size / (1024 * 1024):.1f} MB" if msg.file and msg.file.size else "Desconhecido"
                     nome_arquivo = msg.file.name if (msg.file and msg.file.name) else f"Aula_{msg.id}.mp4"
+                    nome_limpo = _sanitizar_nome_arquivo(nome_arquivo)
                     aulas_encontradas.append({
                         'id': msg.id,
                         'nome': txt,
                         'tamanho': tamanho,
                         'ordem': ordem_idx,
                         'nome_arquivo': nome_arquivo,
-                        'ja_no_drive': _normalizar_nome(nome_arquivo) in nomes_no_drive,
+                        'nome_arquivo_limpo': nome_limpo,
+                        'ja_no_drive': _normalizar_nome(nome_limpo) in nomes_no_drive,
                     })
                     ordem_idx += 1
             return {"sucesso": True, "aulas": aulas_encontradas}
@@ -60,12 +62,13 @@ def verificar_sincronia(nome_canal, id_pasta_raiz):
     if resp.get('erro'):
         return {'erro': resp['erro']}
     aulas_tg = resp.get('aulas', [])
-    nomes_tg = {_normalizar_nome(a['nome_arquivo']) for a in aulas_tg}
+    nomes_tg = {_normalizar_nome(a.get('nome_arquivo_limpo') or a['nome_arquivo']) for a in aulas_tg}
 
     faltando = [
         {
             'id': a['id'],
             'nome_arquivo': a['nome_arquivo'],
+            'nome_arquivo_limpo': a.get('nome_arquivo_limpo') or a['nome_arquivo'],
             'tamanho': a['tamanho'],
             'ordem': a['ordem'],
         }
@@ -104,7 +107,7 @@ def verificar_sincronia(nome_canal, id_pasta_raiz):
     }
 
 @eel.expose
-def obter_fotos_canais(lista_nomes):
+def obter_fotos_canais(lista_nomes, id_pasta_raiz=None):
     os.makedirs(PASTA_CACHE_FOTOS, exist_ok=True)
     resultado = {}
     pendentes = []
@@ -118,6 +121,16 @@ def obter_fotos_canais(lista_nomes):
 
     if not pendentes:
         return resultado
+
+    drive_service = None
+    id_pasta_capas = None
+    if id_pasta_raiz:
+        try:
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+            drive_service = build('drive', 'v3', credentials=creds)
+            id_pasta_capas = _garantir_pasta_capas(drive_service, id_pasta_raiz)
+        except Exception:
+            drive_service = None
 
     async def baixar_todos():
         async with TelegramClient(
@@ -139,6 +152,9 @@ def obter_fotos_canais(lista_nomes):
                     path = await client.download_profile_photo(conversa, file=caminho)
                     if path and os.path.exists(caminho) and os.path.getsize(caminho) > 0:
                         resultado[nome] = f"/cache_fotos/{slug}.jpg"
+                        # Upload para Drive após baixar do Telegram
+                        if drive_service and id_pasta_capas:
+                            _upload_capa_drive(drive_service, caminho, id_pasta_capas, nome)
                 except Exception:
                     pass
 
