@@ -33,7 +33,7 @@ def buscar_aulas_real(nome_canal, id_pasta_raiz=None):
 
             aulas_encontradas = []
             ordem_idx = 0
-            async for msg in client.iter_messages(canal_alvo, reverse=True):
+            async for msg in client.iter_messages(canal_alvo):
                 if (msg.video or msg.document) and not (msg.file and msg.file.ext == '.webp'):
                     texto_bruto = msg.text[:60].replace('\\n', ' ') if msg.text else (msg.file.name if msg.file and msg.file.name else f"Arquivo_{msg.id}")
                     txt = _limpar_markdown(texto_bruto)
