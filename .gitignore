@@ -5,8 +5,8 @@ __pycache__/
 *.spec
 .claude/
 .qwen/
+.venv/
 sessao_estudos.session
 token.json
 credentials.json
-stitch_telegram_course_manager/
 web/cache_fotos/
