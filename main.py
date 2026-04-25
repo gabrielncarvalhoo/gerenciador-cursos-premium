@@ -1,5 +1,10 @@
-import eel
+import ctypes
 import os
+
+app_id = 'GerenciadorCursos.App.1.0'
+ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+
+import eel
 import threading
 
 # Inicializa Eel ANTES de importar os módulos que usam @eel.expose
