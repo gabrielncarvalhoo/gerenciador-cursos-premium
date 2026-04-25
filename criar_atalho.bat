@@ -1,4 +1,9 @@
 @echo off
-powershell -ExecutionPolicy Bypass -File "%~dp0criar_atalho.ps1"
-echo Atalho criado!
+echo ================================
+echo  Atualizando Gerenciador Cursos
+echo ================================
+git pull
+echo.
+echo Atualizado com sucesso!
+echo Inicie o app com iniciar.bat
 pause
