@@ -220,6 +220,38 @@ async function limparNomesDrive() {
     }
 }
 
+async function reindexarCursoTelegram() {
+    const canal = document.getElementById('sync-canal').value.trim();
+    const drive = document.getElementById('sync-drive').value.trim();
+    const status = document.getElementById('reindex-telegram-status');
+    const btn = document.getElementById('btn-reindex-telegram');
+
+    if (!canal || !drive) {
+        status.classList.remove('hidden');
+        status.innerText = '⚠️ Preencha o canal e o ID da pasta do Drive.';
+        return;
+    }
+
+    btn.disabled = true; btn.classList.add('opacity-60');
+    status.classList.remove('hidden');
+    status.innerText = '🔄 Reindexando pela ordem real do Telegram...';
+
+    try {
+        const resp = await eel.reindexar_curso_pelo_telegram(canal, drive)();
+        if (resp && resp.erro) {
+            status.innerText = `❌ ${resp.mensagem || resp.erro}`;
+        } else if (resp && resp.sucesso === false) {
+            status.innerText = `❌ ${resp.erro}`;
+        } else {
+            status.innerText = `✅ ${resp.total} arquivo(s) indexados, ${resp.matched} com correspondência no Telegram, ${resp.sem_match} sem correspondência.`;
+        }
+    } catch (e) {
+        status.innerText = '❌ Falha ao conectar com o Python.';
+    } finally {
+        btn.disabled = false; btn.classList.remove('opacity-60');
+    }
+}
+
 async function renomearCursoDrive() {
     const idPastaCurso = document.getElementById('input-renomear-curso').value.trim();
     const status = document.getElementById('renomear-curso-status');

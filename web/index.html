@@ -136,6 +136,17 @@
                         Reindexar Cursos Existentes
                     </button>
                     <div id="reindex-status" class="text-xs font-mono text-on-surface-variant hidden"></div>
+
+                    <!-- Reindexar pelo Telegram -->
+                    <div class="flex flex-col gap-2 pt-3 border-t border-outline-variant/10">
+                        <label class="block text-xs font-label uppercase tracking-widest text-primary">Reindexar um curso pela ordem real do Telegram</label>
+                        <p class="text-xs text-on-surface-variant">Usa a ordem cronológica das mensagens no Telegram (msg.id crescente) para gerar o _ordem.json. Reaproveita canal e pasta do Drive já preenchidos acima.</p>
+                        <button onclick="reindexarCursoTelegram()" id="btn-reindex-telegram" class="self-start flex items-center gap-2 px-5 py-2.5 rounded-full bg-secondary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.15)]">
+                            <span class="material-symbols-outlined text-[18px]">fact_check</span>
+                            Reindexar pelo Telegram
+                        </button>
+                        <div id="reindex-telegram-status" class="text-xs font-mono text-on-surface-variant hidden"></div>
+                    </div>
                 </div>
 
                 <div class="bg-surface-container rounded-xl p-6 flex flex-col gap-4 shadow-lg border border-outline-variant/10">
