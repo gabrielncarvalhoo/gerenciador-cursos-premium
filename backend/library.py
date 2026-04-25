@@ -90,6 +90,8 @@ def carregar_aulas_curso(id_pasta_curso):
         arquivos = [a for a in arquivos if not _limpar_markdown(a['name']).startswith('_')]
 
         if ordem_data and ordem_data.get('arquivos'):
+            # Python dict descarta chaves duplicadas — se o JSON tiver entradas com
+            # mesmo nome, só a última ordem é mantida. O sort fica determinístico.
             mapa_ordem = {e['nome']: e['ordem'] for e in ordem_data['arquivos']}
             pos_faltante = max(mapa_ordem.values(), default=-1) + 1
             def chave(a):
@@ -97,6 +99,15 @@ def carregar_aulas_curso(id_pasta_curso):
             arquivos.sort(key=chave)
         else:
             arquivos.sort(key=lambda x: _extrair_numero_ordem(x['name']))
+
+        # Defesa final: remove duplicatas por nome após ordenação.
+        vista = set()
+        arquivos_unicos = []
+        for a in arquivos:
+            if a['name'] not in vista:
+                vista.add(a['name'])
+                arquivos_unicos.append(a)
+        arquivos = arquivos_unicos
 
         aulas = []
         for i, arq in enumerate(arquivos):

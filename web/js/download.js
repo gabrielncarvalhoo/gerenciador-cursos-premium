@@ -59,7 +59,7 @@ async function buscarAulasBotao() {
         _aulasEncontradas = resposta.aulas;
         let contadorJaNoDrive = 0;
 
-        resposta.aulas.forEach(aula => {
+        resposta.aulas.slice().reverse().forEach(aula => {
             if (aula.ja_no_drive) contadorJaNoDrive++;
             // Visual diferenciado para quem já está no Drive.
             const baseClasses = 'flex items-center justify-between p-4 rounded-lg transition-colors group';

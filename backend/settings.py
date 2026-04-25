@@ -153,9 +153,20 @@ def reindexar_curso_pelo_telegram(nome_canal, id_pasta_raiz):
             nome_limpo = _sanitizar_nome_arquivo(arq['name'])
             entradas.append({'nome': arq['name'], 'ordem': matched + i})
 
-        # 5. Salvar _ordem.json
+        # 5. Buscar _ordem.json existente e deduplicar
+        ordem_existente, file_id_existente = _ler_ordem_drive(drive_service, id_pasta_curso)
+
+        arquivos_vistos = set()
+        arquivos_unicos = []
+        for arq in entradas:
+            if arq['nome'] not in arquivos_vistos:
+                arquivos_vistos.add(arq['nome'])
+                arquivos_unicos.append(arq)
+        entradas = arquivos_unicos
+
+        # 6. Salvar _ordem.json (update se existe, create se não)
         ordem_data = {'curso': nome_canal, 'arquivos': entradas}
-        _salvar_ordem_drive(drive_service, id_pasta_curso, ordem_data)
+        _salvar_ordem_drive(drive_service, id_pasta_curso, ordem_data, file_id_existente)
 
         return {'sucesso': True, 'total': len(arquivos_drive), 'matched': matched, 'sem_match': sem_match}
 
