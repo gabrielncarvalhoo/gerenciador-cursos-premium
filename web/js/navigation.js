@@ -77,37 +77,6 @@ async function renderSettings() {
     }
 }
 
-async function reindexarCursos() {
-    const rootId = document.getElementById('input-drive').value || localStorage.getItem('rootDriveRootId');
-    const status = document.getElementById('reindex-status');
-    const btn = document.getElementById('btn-reindexar');
-
-    if (!rootId) {
-        status.classList.remove('hidden');
-        status.innerText = '⚠️ Defina o ID da pasta raiz em Download Center primeiro.';
-        return;
-    }
-
-    btn.disabled = true; btn.classList.add('opacity-60');
-    status.classList.remove('hidden');
-    status.innerText = 'Reindexando... pode levar alguns segundos.';
-
-    try {
-        const resp = await eel.reindexar_cursos_drive(rootId)();
-        if (resp.erro) {
-            status.innerText = `❌ ${resp.mensagem || resp.erro}`;
-        } else {
-            const feitos = (resp.reindexados || []).length;
-            const pulados = (resp.ja_tinham || []).length;
-            status.innerText = `✅ ${feitos} curso(s) reindexado(s). ${pulados} já tinham _ordem.json.`;
-        }
-    } catch (e) {
-        status.innerText = '❌ Falha ao conectar com o Python.';
-    } finally {
-        btn.disabled = false; btn.classList.remove('opacity-60');
-    }
-}
-
 // M3: guarda a última verificação pra que "Baixar faltantes" saiba quais
 // IDs pré-selecionar no Download Center.
 let _syncFaltandoCache = null;

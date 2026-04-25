@@ -4,6 +4,7 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Gerenciador de Cursos - Premium Archive</title>
+    <link rel="icon" href="assets/favicon.png">
     <script type="text/javascript" src="/eel.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -18,7 +19,8 @@
 <body class="bg-surface-container-lowest text-on-surface h-screen flex overflow-hidden antialiased">
 
     <nav class="h-screen w-64 fixed left-0 top-0 bg-[#131313] shadow-[0px_20px_40px_rgba(0,0,0,0.4)] flex flex-col py-8 px-4 z-50">
-        <div class="mb-12 px-4 flex flex-col gap-1 cursor-pointer" onclick="showView('library')">
+        <div class="mb-8 px-4 flex flex-col gap-1 cursor-pointer" onclick="showView('library')">
+            <img src="assets/logo_icon.png" width="40" height="40" class="mb-2 rounded-lg">
             <h1 class="text-xl font-bold tracking-widest uppercase text-primary">Gerenciador</h1>
             <p class="text-xs uppercase tracking-widest text-[#e5e2e1]/50">Premium Archive</p>
         </div>
@@ -129,24 +131,13 @@
                 </div>
 
                 <div class="bg-surface-container rounded-xl p-6 flex flex-col gap-4 shadow-lg border border-outline-variant/10">
-                    <label class="block text-xs font-label uppercase tracking-widest text-primary">Reindexar cursos existentes</label>
-                    <p class="text-xs text-on-surface-variant">Gera um arquivo de ordem (<code class="text-primary">_ordem.json</code>) nas pastas de curso que ainda não possuem um. A ordenação inicial usa o número do nome do arquivo como melhor palpite disponível — cursos futuros já salvam a ordem real do canal automaticamente.</p>
-                    <button onclick="reindexarCursos()" id="btn-reindexar" class="self-start flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.15)]">
-                        <span class="material-symbols-outlined text-[18px]">sync</span>
-                        Reindexar Cursos Existentes
+                    <label class="block text-xs font-label uppercase tracking-widest text-primary">Reindexar um curso pela ordem real do Telegram</label>
+                    <p class="text-xs text-on-surface-variant">Usa a ordem cronológica das mensagens no Telegram (msg.id crescente) para gerar o _ordem.json. Reaproveita canal e pasta do Drive já preenchidos.</p>
+                    <button onclick="reindexarCursoTelegram()" id="btn-reindex-telegram" class="self-start flex items-center gap-2 px-5 py-2.5 rounded-full bg-secondary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.15)]">
+                        <span class="material-symbols-outlined text-[18px]">fact_check</span>
+                        Reindexar pelo Telegram
                     </button>
-                    <div id="reindex-status" class="text-xs font-mono text-on-surface-variant hidden"></div>
-
-                    <!-- Reindexar pelo Telegram -->
-                    <div class="flex flex-col gap-2 pt-3 border-t border-outline-variant/10">
-                        <label class="block text-xs font-label uppercase tracking-widest text-primary">Reindexar um curso pela ordem real do Telegram</label>
-                        <p class="text-xs text-on-surface-variant">Usa a ordem cronológica das mensagens no Telegram (msg.id crescente) para gerar o _ordem.json. Reaproveita canal e pasta do Drive já preenchidos acima.</p>
-                        <button onclick="reindexarCursoTelegram()" id="btn-reindex-telegram" class="self-start flex items-center gap-2 px-5 py-2.5 rounded-full bg-secondary text-[#001a42] font-label uppercase tracking-widest text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(173,198,255,0.15)]">
-                            <span class="material-symbols-outlined text-[18px]">fact_check</span>
-                            Reindexar pelo Telegram
-                        </button>
-                        <div id="reindex-telegram-status" class="text-xs font-mono text-on-surface-variant hidden"></div>
-                    </div>
+                    <div id="reindex-telegram-status" class="text-xs font-mono text-on-surface-variant hidden"></div>
                 </div>
 
                 <div class="bg-surface-container rounded-xl p-6 flex flex-col gap-4 shadow-lg border border-outline-variant/10">
