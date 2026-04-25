@@ -1,9 +1,4 @@
 @echo off
-echo ================================
-echo  Atualizando Gerenciador Cursos
-echo ================================
-git pull
-echo.
-echo Atualizado com sucesso!
-echo Inicie o app com iniciar.bat
+powershell -ExecutionPolicy Bypass -File "%~dp0criar_atalho.ps1"
+echo Atalho criado!
 pause
