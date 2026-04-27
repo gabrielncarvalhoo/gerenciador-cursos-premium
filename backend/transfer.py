@@ -13,7 +13,7 @@ from .config import (
 )
 import backend.config as config
 from .utils import _garantir_pasta_temp, _sanitizar_nome_arquivo
-from .drive import _upload_sync, _ler_ordem_drive, _salvar_ordem_drive, _mesclar_ordem
+from .drive import _upload_sync, _ler_ordem_drive, _salvar_ordem_drive, _mesclar_ordem, _obter_servico_drive
 
 @eel.expose
 def parar_transferencia_python():
@@ -270,8 +270,7 @@ async def _motor_transferencia(nome_canal, id_pasta_raiz, lista_ids, ordens):
                 pass
             return
 
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        drive_service = build('drive', 'v3', credentials=creds)
+        drive_service = _obter_servico_drive()
         try:
             eel.addLogVisual("✅ Drive conectado!")()
         except Exception:

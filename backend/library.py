@@ -1,11 +1,9 @@
 import eel
 from concurrent.futures import TimeoutError as FuturesTimeoutError
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 
 from .config import SCOPES, _POOL_BIBLIOTECA, DRIVE_TIMEOUT
+from .drive import _obter_servico_drive, _ler_ordem_drive
 from .utils import _extrair_numero_ordem, _limpar_markdown
-from .drive import _ler_ordem_drive
 
 def _rodar_com_timeout(funcao, timeout=DRIVE_TIMEOUT):
     future = _POOL_BIBLIOTECA.submit(funcao)
@@ -14,8 +12,7 @@ def _rodar_com_timeout(funcao, timeout=DRIVE_TIMEOUT):
 @eel.expose
 def carregar_cursos_drive(id_pasta_raiz):
     def consulta():
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        drive_service = build('drive', 'v3', credentials=creds)
+        drive_service = _obter_servico_drive()
 
         query = f"'{id_pasta_raiz}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
         pastas_all = []
@@ -66,8 +63,7 @@ def carregar_cursos_drive(id_pasta_raiz):
 @eel.expose
 def carregar_aulas_curso(id_pasta_curso):
     def consulta():
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        drive_service = build('drive', 'v3', credentials=creds)
+        drive_service = _obter_servico_drive()
 
         query = f"'{id_pasta_curso}' in parents and trashed=false"
         arquivos = []
@@ -131,8 +127,7 @@ def obter_link_aula(file_id):
     drive_url = f"https://drive.google.com/file/d/{file_id}/view"
 
     def checar_e_corrigir():
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        drive_service = build('drive', 'v3', credentials=creds)
+        drive_service = _obter_servico_drive()
 
         is_processing = False
         try:
