@@ -3,7 +3,9 @@ import json
 import os
 import eel
 import asyncio
+from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseUpload
 
@@ -11,6 +13,25 @@ from .config import SCOPES, DRIVE_CHUNKSIZE, ORDEM_FILENAME, PASTA_CACHE_FOTOS
 from .utils import _normalizar_nome, _sanitizar_nome_arquivo, _slug_canal, _limpar_markdown
 
 CAPAS_FOLDER_NAME = '_capas'
+
+
+def _obter_credenciais():
+    creds = None
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
+    return creds
+
+
+def _obter_servico_drive():
+    return build('drive', 'v3', credentials=_obter_credenciais())
 
 
 def _garantir_pasta_capas(drive_service, id_pasta_raiz):
@@ -65,8 +86,7 @@ def _upload_capa_drive(drive_service, caminho_local, id_pasta_capas, nome_curso)
 
 
 def _listar_nomes_no_drive(id_pasta_raiz, nome_canal):
-    creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    drive_service = build('drive', 'v3', credentials=creds)
+    drive_service = _obter_servico_drive()
 
     query_pasta = (
         f"'{id_pasta_raiz}' in parents and name='{nome_canal}' "
@@ -162,8 +182,7 @@ def _upload_sync(drive_service, caminho_local, nome_original, id_pasta_destino):
 def limpar_nomes_drive(id_pasta_raiz):
     """Renomeia arquivos no Drive que contêm **, __ ou * no nome, removendo a formatação markdown."""
     def tarefa():
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        drive_service = build('drive', 'v3', credentials=creds)
+        drive_service = _obter_servico_drive()
 
         # Lista todas as pastas de curso na raiz
         query_pastas = f"'{id_pasta_raiz}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
@@ -216,8 +235,7 @@ def limpar_nomes_drive(id_pasta_raiz):
 def sincronizar_capas(id_pasta_raiz, nomes_cursos):
     """Para cada curso sem capa local, tenta baixar do Drive. Retorna quantos sincronizou."""
     try:
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        drive_service = build('drive', 'v3', credentials=creds)
+        drive_service = _obter_servico_drive()
     except Exception as e:
         return {'erro': str(e), 'sincronizados': 0}
 
@@ -252,8 +270,7 @@ def renomear_curso_drive(id_pasta_curso):
     """Renomeia todos arquivos de uma pasta de curso para nome limpo.
        Atualiza _ordem.json. Retorna {renomeados, erros, total}."""
     def tarefa():
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        drive_service = build('drive', 'v3', credentials=creds)
+        drive_service = _obter_servico_drive()
 
         query = f"'{id_pasta_curso}' in parents and trashed=false"
         arquivos = drive_service.files().list(
