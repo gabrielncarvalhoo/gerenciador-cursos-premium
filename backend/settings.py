@@ -53,7 +53,7 @@ def reindexar_curso_pelo_telegram(nome_canal, id_pasta_raiz):
         # 2. Coletar mensagens do Telegram (SEM reverse=True → newest→oldest)
         #    ordenar por msg.id crescente = ordem cronológica real
         async def coletar_telegram():
-            mapa = {}  # nome_normalizado → msg.id
+            mapa = {}  # nome_normalizado → ordem_idx
             async with TelegramClient('sessao_estudos', API_ID, API_HASH) as client:
                 canal_alvo = None
                 async for conversa in client.iter_dialogs():
@@ -63,13 +63,19 @@ def reindexar_curso_pelo_telegram(nome_canal, id_pasta_raiz):
                 if not canal_alvo:
                     return {}
 
+                todas_msgs = []
                 async for msg in client.iter_messages(canal_alvo):
                     if (msg.video or msg.document) and not (msg.file and msg.file.ext == '.webp'):
-                        nome_raw = msg.file.name if (msg.file and msg.file.name) else f"Aula_{msg.id}"
-                        nome_limpo = _sanitizar_nome_arquivo(nome_raw)
-                        chave = _normalizar_nome(nome_limpo)
-                        if chave and msg.id not in mapa.values():
-                            mapa[chave] = msg.id
+                        todas_msgs.append(msg)
+
+                todas_msgs.sort(key=lambda m: m.id)
+
+                for idx, msg in enumerate(todas_msgs):
+                    nome_raw = msg.file.name if (msg.file and msg.file.name) else f"Aula_{msg.id}"
+                    nome_limpo = _sanitizar_nome_arquivo(nome_raw)
+                    chave = _normalizar_nome(nome_limpo)
+                    if chave:
+                        mapa[chave] = idx
                 return mapa
 
         mapa_tg = asyncio.run(coletar_telegram())
